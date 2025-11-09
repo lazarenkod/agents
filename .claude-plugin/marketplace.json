@@ -776,18 +776,53 @@
     {
       "name": "kotlin-koog-development",
       "source": "./plugins/kotlin-koog-development",
-      "description": "Expert Kotlin Koog AI agents development with senior architect guidance, comprehensive skill development, and automated project scaffolding. Covers prompt API, agent events, custom strategy graphs, parallel execution, data transfer, history compression, content moderation, structured output, sessions, embeddings, model capabilities, MCP integration, and production deployment patterns for building enterprise-grade AI agents.",
-      "version": "1.1.0",
+      "description": "Expert Kotlin Koog AI agents development with senior architect guidance, comprehensive testing strategies, production deployment automation, and advanced tool integration. Covers agent architecture, testing patterns, performance optimization, multimodal agents, workflow orchestration, production operations, and enterprise-grade deployment. Includes prompt API, agent events, strategy graphs, parallel execution, MCP integration, and complete CI/CD setup.",
+      "version": "2.0.0",
       "category": "ai-development",
-      "tags": ["kotlin", "koog", "ai-agents", "agent-architecture", "jvm", "prompt-api", "strategy-graphs", "multimodal", "rag", "mcp"],
+      "tags": ["kotlin", "koog", "ai-agents", "agent-architecture", "jvm", "testing", "production", "tool-integration", "multimodal", "workflow", "mcp", "performance"],
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "kotlin",
+        "koog",
+        "ai-agents",
+        "jvm",
+        "testing",
+        "production",
+        "deployment",
+        "tool-integration",
+        "multimodal",
+        "workflow-orchestration",
+        "performance-optimization",
+        "mcp",
+        "agent-development"
+      ],
+      "strict": false,
       "commands": [
-        "./commands/koog-agent-scaffold.md"
+        "./commands/koog-agent-scaffold.md",
+        "./commands/koog-test-scaffold.md",
+        "./commands/koog-production-deploy.md",
+        "./commands/koog-tool-integration.md"
       ],
       "agents": [
-        "./agents/kotlin-koog-agent-architect.md"
+        "./agents/kotlin-koog-agent-architect.md",
+        "./agents/koog-testing-specialist.md",
+        "./agents/koog-production-engineer.md",
+        "./agents/koog-integration-architect.md"
       ],
       "skills": [
-        "./skills/kotlin-koog-agent-development"
+        "./skills/kotlin-koog-agent-development",
+        "./skills/koog-testing-patterns",
+        "./skills/koog-production-deployment",
+        "./skills/koog-tool-integration",
+        "./skills/koog-performance-optimization",
+        "./skills/koog-multimodal-agents",
+        "./skills/koog-workflow-orchestration"
       ]
     },
     {
@@ -2201,8 +2236,8 @@
     {
       "name": "tarantool-development",
       "source": "./plugins/tarantool-development",
-      "description": "Expert Tarantool database development, distributed in-memory databases, Lua application development, clustering with Cartridge, and sharding with vshard. Masters architecture design, high-performance optimization, replication, and production deployments.",
-      "version": "1.0.0",
+      "description": "Comprehensive Tarantool database development with architecture design, performance optimization, migration strategies, DevOps automation, testing patterns, monitoring, and security hardening. Expert agents for in-memory databases, Lua development, Cartridge clustering, vshard sharding, production operations, and enterprise deployments.",
+      "version": "2.0.0",
       "author": {
         "name": "Dmitry Lazarenko",
         "url": "https://github.com/lazarenkod"
@@ -2218,6 +2253,12 @@
         "cartridge",
         "vshard",
         "database-architecture",
+        "performance-optimization",
+        "database-migration",
+        "devops-automation",
+        "testing",
+        "monitoring",
+        "security",
         "replication",
         "sharding",
         "high-performance",
@@ -2228,10 +2269,16 @@
       "commands": [
         "./commands/tarantool-data-model.md",
         "./commands/tarantool-application-dev.md",
-        "./commands/tarantool-cluster-ops.md"
+        "./commands/tarantool-cluster-ops.md",
+        "./commands/tarantool-migration-plan.md",
+        "./commands/tarantool-performance-audit.md",
+        "./commands/tarantool-security-review.md"
       ],
       "agents": [
-        "./agents/tarantool-architect.md"
+        "./agents/tarantool-architect.md",
+        "./agents/tarantool-performance-optimizer.md",
+        "./agents/tarantool-migration-specialist.md",
+        "./agents/tarantool-devops-engineer.md"
       ],
       "skills": [
         "./skills/tarantool-architecture",
@@ -2239,7 +2286,11 @@
         "./skills/vshard-sharding",
         "./skills/cartridge-framework",
         "./skills/tarantool-performance",
-        "./skills/replication-ha"
+        "./skills/replication-ha",
+        "./skills/tarantool-testing-patterns",
+        "./skills/tarantool-migration-strategies",
+        "./skills/tarantool-monitoring-observability",
+        "./skills/tarantool-security-hardening"
       ]
     }
   ]
