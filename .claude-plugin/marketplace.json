@@ -73,7 +73,8 @@
       "strict": false,
       "commands": [
         "./commands/doc-generate.md",
-        "./commands/code-explain.md"
+        "./commands/code-explain.md",
+        "./commands/regenerate-docs.md"
       ],
       "agents": [
         "./agents/docs-architect.md",
