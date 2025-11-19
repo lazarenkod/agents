@@ -2946,6 +2946,78 @@
         "./skills/reference-architectures",
         "./skills/competitive-battlecards"
       ]
+    },
+    {
+      "name": "hr-business-partner",
+      "source": "./plugins/hr-business-partner",
+      "description": "World-class HR Business Partner and HR Director expertise from AWS, Google, Microsoft, Netflix, NVIDIA, OpenAI, Stripe. Comprehensive people management: team motivation, performance reviews, strategic hiring, coaching & development, difficult conversations, stakeholder management, and individual development plans. All artifacts saved in Russian markdown. Features expert agents for HR BP and HR Director roles, plus deep-dive skills on motivation (intrinsic motivation, psychological safety, engagement), performance management (OKRs, calibration, 360-feedback, PIPs), strategic hiring (Bar Raiser, structured interviews, diversity, candidate experience), and coaching frameworks (GROW model, career conversations, mentorship, succession planning).",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "hr",
+        "hr-business-partner",
+        "hr-director",
+        "people-management",
+        "team-motivation",
+        "employee-engagement",
+        "performance-review",
+        "performance-management",
+        "okr",
+        "strategic-hiring",
+        "recruiting",
+        "bar-raiser",
+        "structured-interviews",
+        "diversity-hiring",
+        "coaching",
+        "career-development",
+        "individual-development-plan",
+        "idp",
+        "mentorship",
+        "succession-planning",
+        "1-on-1",
+        "grow-model",
+        "difficult-conversations",
+        "terminations",
+        "stakeholder-management",
+        "talent-retention",
+        "employee-experience",
+        "psychological-safety",
+        "360-feedback",
+        "calibration",
+        "pip",
+        "promotion",
+        "compensation",
+        "russian-output",
+        "aws-practices",
+        "google-practices",
+        "microsoft-practices",
+        "netflix-practices",
+        "nvidia-practices",
+        "openai-practices",
+        "stripe-practices"
+      ],
+      "category": "business",
+      "strict": false,
+      "commands": [
+        "./commands/performance-review.md",
+        "./commands/team-engagement-audit.md"
+      ],
+      "agents": [
+        "./agents/hr-business-partner.md",
+        "./agents/hr-director.md"
+      ],
+      "skills": [
+        "./skills/team-motivation-excellence",
+        "./skills/performance-review-mastery",
+        "./skills/strategic-hiring-excellence",
+        "./skills/coaching-development-frameworks"
+      ]
     }
   ]
 }
