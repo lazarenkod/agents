@@ -1,379 +1,301 @@
-# Architecture & Design Principles
+# Architecture - Архитектура маркетплейса
 
-This marketplace follows industry best practices with a focus on granularity, composability, and minimal token usage.
+> Автоматически сгенерировано из структуры репозитория
 
-## Core Philosophy
+## Обзор системы
 
-### Single Responsibility Principle
+Claude Code Plugins Marketplace - это production-ready система для организации и оркестрации AI агентов.
 
-- Each plugin does **one thing well** (Unix philosophy)
-- Clear, focused purposes (describable in 5-10 words)
-- Average plugin size: **3.4 components** (follows Anthropic's 2-8 pattern)
-- **Zero bloated plugins** - all plugins focused and purposeful
+### Текущая статистика
 
-### Composability Over Bundling
+- **Плагины:** 82
+- **Агенты:** 204
+- **Скиллы:** 154
+- **Команды:** 123
 
-- Mix and match plugins based on needs
-- Workflow orchestrators compose focused plugins
-- No forced feature bundling
-- Clear boundaries between plugins
+## Принципы проектирования
 
-### Context Efficiency
+### 1. Гранулярность и фокус
 
-- Smaller tools = faster processing
-- Better fit in LLM context windows
-- More accurate, focused responses
-- Install only what you need
-
-### Maintainability
-
-- Single-purpose = easier updates
-- Clear boundaries = isolated changes
-- Less duplication = simpler maintenance
-- Isolated dependencies
-
-## Granular Plugin Architecture
-
-### Plugin Distribution
-
-- **63 focused plugins** optimized for specific use cases
-- **23 clear categories** with 1-6 plugins each for easy discovery
-- Organized by domain:
-  - **Development**: 4 plugins (debugging, backend, frontend, multi-platform)
-  - **Security**: 4 plugins (scanning, compliance, backend-api, frontend-mobile)
-  - **Operations**: 4 plugins (incident, diagnostics, distributed, observability)
-  - **Languages**: 7 plugins (Python, JS/TS, systems, JVM, scripting, functional, embedded)
-  - **Infrastructure**: 5 plugins (deployment, validation, K8s, cloud, CI/CD)
-  - And 18 more specialized categories
-
-### Component Breakdown
-
-**85 Specialized Agents**
-- Domain experts with deep knowledge
-- Organized across architecture, languages, infrastructure, quality, data/AI, documentation, business, and SEO
-- Model-optimized (47 Haiku, 97 Sonnet) for performance and cost
-
-**15 Workflow Orchestrators**
-- Multi-agent coordination systems
-- Complex operations like full-stack development, security hardening, ML pipelines, incident response
-- Pre-configured agent workflows
-
-**44 Development Tools**
-- Optimized utilities including:
-  - Project scaffolding (Python, TypeScript, Rust)
-  - Security scanning (SAST, dependency audit, XSS)
-  - Test generation (pytest, Jest)
-  - Component scaffolding (React, React Native)
-  - Infrastructure setup (Terraform, Kubernetes)
-
-**47 Agent Skills**
-- Modular knowledge packages
-- Progressive disclosure architecture
-- Domain-specific expertise across 14 plugins
-- Spec-compliant (Anthropic Agent Skills Specification)
-
-## Repository Structure
+Каждый плагин фокусируется на одной предметной области:
 
 ```
-claude-agents/
-├── .claude-plugin/
-│   └── marketplace.json          # Marketplace catalog (63 plugins)
-├── plugins/                       # Isolated plugin directories
-│   ├── python-development/
-│   │   ├── agents/               # Python language agents
-│   │   │   ├── python-pro.md
-│   │   │   ├── django-pro.md
-│   │   │   └── fastapi-pro.md
-│   │   ├── commands/             # Python tooling
-│   │   │   └── python-scaffold.md
-│   │   └── skills/               # Python skills (5 total)
-│   │       ├── async-python-patterns/
-│   │       ├── python-testing-patterns/
-│   │       ├── python-packaging/
-│   │       ├── python-performance-optimization/
-│   │       └── uv-package-manager/
-│   ├── backend-development/
-│   │   ├── agents/
-│   │   │   ├── backend-architect.md
-│   │   │   ├── graphql-architect.md
-│   │   │   └── tdd-orchestrator.md
-│   │   ├── commands/
-│   │   │   └── feature-development.md
-│   │   └── skills/               # Backend skills (3 total)
-│   │       ├── api-design-principles/
-│   │       ├── architecture-patterns/
-│   │       └── microservices-patterns/
-│   ├── security-scanning/
-│   │   ├── agents/
-│   │   │   └── security-auditor.md
-│   │   ├── commands/
-│   │   │   ├── security-hardening.md
-│   │   │   ├── security-sast.md
-│   │   │   └── security-dependencies.md
-│   │   └── skills/               # Security skills (1 total)
-│   │       └── sast-configuration/
-│   └── ... (60 more isolated plugins)
-├── docs/                          # Documentation
-│   ├── agent-skills.md           # Agent Skills guide
-│   ├── agents.md                 # Agent reference
-│   ├── plugins.md                # Plugin catalog
-│   ├── usage.md                  # Usage guide
-│   └── architecture.md           # This file
-└── README.md                      # Quick start
+plugins/
+├── backend-development/     # Backend разработка
+├── frontend-mobile/         # Frontend/Mobile
+├── database-design/         # Database проектирование
+└── ...
 ```
 
-## Plugin Structure
+Среднее количество компонентов на плагин: **5.9**
 
-Each plugin contains:
+### 2. Изоляция компонентов
 
-- **agents/** - Specialized agents for that domain (optional)
-- **commands/** - Tools and workflows specific to that plugin (optional)
-- **skills/** - Modular knowledge packages with progressive disclosure (optional)
-
-### Minimum Requirements
-
-- At least one agent OR one command
-- Clear, focused purpose
-- Proper frontmatter in all files
-- Entry in marketplace.json
-
-### Example Plugin
+Каждый плагин содержит все необходимые компоненты:
 
 ```
-plugins/kubernetes-operations/
+plugin/
+├── agents/          # Агенты для рассуждения
+├── commands/        # Команды для выполнения
+└── skills/          # Скиллы для знаний
+```
+
+### 3. Оптимизация использования токенов
+
+- Минимальный размер плагинов
+- Прогрессивное раскрытие в скиллах
+- Ленивая загрузка компонентов
+- Установка только необходимых плагинов
+
+### 4. Специализация агентов
+
+Агенты оптимизированы под конкретные задачи:
+
+- **Haiku агенты (52)** - Быстрая генерация кода, тесты, документация
+- **Sonnet агенты (152)** - Архитектура, дизайн, аудит
+- **Opus агенты (0)** - Критически сложные задачи
+
+## Паттерны архитектуры
+
+### Паттерн 1: Domain-Focused Plugin
+
+Каждый плагин сфокусирован на домене с со-расположенной экспертизой:
+
+```
+backend-development/
 ├── agents/
-│   └── kubernetes-architect.md   # K8s architecture and design
+│   ├── backend-architect.md      # Архитектура
+│   ├── api-developer.md          # Разработка
+│   └── tdd-orchestrator.md       # Тестирование
 ├── commands/
-│   └── k8s-deploy.md            # Deployment automation
+│   └── feature-development.md     # Workflow
 └── skills/
-    ├── k8s-manifest-generator/   # Manifest creation skill
-    ├── helm-chart-scaffolding/   # Helm chart skill
-    ├── gitops-workflow/          # GitOps automation skill
-    └── k8s-security-policies/    # Security policy skill
+    ├── api-design-principles/     # Знания по API
+    └── architecture-patterns/     # Паттерны архитектуры
 ```
 
-## Agent Skills Architecture
+### Паттерн 2: Workflow Orchestration
 
-### Progressive Disclosure
+Сложные workflow координируют несколько агентов:
 
-Skills use a three-tier architecture for token efficiency:
+```
+User request
+  ↓
+Orchestrator Agent (backend-architect)
+  ↓
+Database Architect → Frontend Developer → Test Automator
+  ↓
+Security Auditor → Deployment Engineer
+  ↓
+Result
+```
 
-1. **Metadata** (Frontmatter): Name and activation criteria (always loaded)
-2. **Instructions**: Core guidance and patterns (loaded when activated)
-3. **Resources**: Examples and templates (loaded on demand)
+### Паттерн 3: Progressive Skill Disclosure
 
-### Specification Compliance
+Скиллы загружают знания поэтапно:
 
-All skills follow the [Agent Skills Specification](https://github.com/anthropics/skills/blob/main/agent_skills_spec.md):
+1. **Метаданные** (всегда) - название, триггер
+2. **Инструкции** (при активации) - основы, паттерны
+3. **Ресурсы** (по требованию) - примеры, шаблоны
 
+## Структура данных
+
+### Marketplace Manifest
+
+`.claude-plugin/marketplace.json` - центральный реестр:
+
+```json
+{
+  "name": "claude-agents",
+  "metadata": {
+    "description": "...",
+    "version": "1.4.0"
+  },
+  "plugins": [...]
+}
+```
+
+### Plugin Structure
+
+```
+plugin-name/
+├── agents/              # AI агенты с system prompts
+│   └── agent.md        # YAML frontmatter + Markdown
+├── commands/            # Исполняемые команды
+│   └── command.md      # YAML frontmatter + Markdown
+└── skills/             # Базы знаний
+    └── skill-name/     # Директория скилла
+        ├── SKILL.md    # Основной файл
+        ├── references/ # Справка
+        └── assets/     # Шаблоны
+```
+
+### Frontmatter Format
+
+**Агенты:**
 ```yaml
 ---
-name: skill-name                  # Required: hyphen-case
-description: What the skill does. Use when [trigger]. # Required: < 1024 chars
+name: agent-identifier
+description: What it does. Use PROACTIVELY when [trigger].
+model: sonnet|haiku|opus
 ---
-
-# Skill content with progressive disclosure
 ```
 
-### Benefits
-
-- **Token Efficiency**: Load only relevant knowledge when needed
-- **Specialized Expertise**: Deep domain knowledge without bloat
-- **Clear Activation**: Explicit triggers prevent unwanted invocation
-- **Composability**: Mix and match skills across workflows
-- **Maintainability**: Isolated updates don't affect other skills
-
-See [Agent Skills](./agent-skills.md) for complete details on the 47 skills.
-
-## Model Configuration Strategy
-
-### Two-Tier Architecture
-
-The system uses Claude Opus and Sonnet models strategically:
-
-| Model | Count | Use Case |
-|-------|-------|----------|
-| Haiku | 47 agents | Fast execution, deterministic tasks |
-| Sonnet | 97 agents | Complex reasoning, architecture decisions |
-
-### Selection Criteria
-
-**Haiku - Fast Execution & Deterministic Tasks**
-- Generating code from well-defined specifications
-- Creating tests following established patterns
-- Writing documentation with clear templates
-- Executing infrastructure operations
-- Performing database query optimization
-- Handling customer support responses
-- Processing SEO optimization tasks
-- Managing deployment pipelines
-
-**Sonnet - Complex Reasoning & Architecture**
-- Designing system architecture
-- Making technology selection decisions
-- Performing security audits
-- Reviewing code for architectural patterns
-- Creating complex AI/ML pipelines
-- Providing language-specific expertise
-- Orchestrating multi-agent workflows
-- Handling business-critical legal/HR matters
-
-### Hybrid Orchestration
-
-Combine models for optimal performance and cost:
-
-```
-Planning Phase (Sonnet) → Execution Phase (Haiku) → Review Phase (Sonnet)
-
-Example:
-backend-architect (Sonnet) designs API
-  ↓
-Generate endpoints (Haiku) implements spec
-  ↓
-test-automator (Haiku) creates tests
-  ↓
-code-reviewer (Sonnet) validates architecture
+**Скиллы:**
+```yaml
+---
+name: skill-identifier
+description: What it teaches. Use when [trigger].
+---
 ```
 
-## Performance & Quality
-
-### Optimized Token Usage
-
-- **Isolated plugins** load only what you need
-- **Granular architecture** reduces unnecessary context
-- **Progressive disclosure** (skills) loads knowledge on demand
-- **Clear boundaries** prevent context pollution
-
-### Component Coverage
-
-- **100% agent coverage** - all plugins include at least one agent
-- **100% component availability** - all 85 agents accessible across plugins
-- **Efficient distribution** - 3.4 components per plugin average
-
-### Discoverability
-
-- **Clear plugin names** convey purpose immediately
-- **Logical categorization** with 23 well-defined categories
-- **Searchable documentation** with cross-references
-- **Easy to find** the right tool for the job
-
-## Design Patterns
-
-### Pattern 1: Single-Purpose Plugin
-
-Each plugin focuses on one domain:
-
-```
-python-development/
-├── agents/           # Python language experts
-├── commands/         # Python project scaffolding
-└── skills/           # Python-specific knowledge
+**Команды:**
+```yaml
+---
+name: command-identifier
+description: What it does
+---
 ```
 
-**Benefits:**
-- Clear responsibility
-- Easy to maintain
-- Minimal token usage
-- Composable with other plugins
+## Стратегия выбора модели
 
-### Pattern 2: Workflow Orchestration
+### Haiku - Скорость и детерминизм
 
-Orchestrator plugins coordinate multiple agents:
+Использование:
+- Генерация кода по спецификации
+- Создание тестов по шаблонам
+- Генерация документации
+- Операции с инфраструктурой
+- Scaffolding инструменты
 
-```
-full-stack-orchestration/
-└── commands/
-    └── full-stack-feature.md    # Coordinates 7+ agents
-```
+### Sonnet - Сложное мышление
 
-**Orchestration:**
-1. backend-architect (design API)
-2. database-architect (design schema)
-3. frontend-developer (build UI)
-4. test-automator (create tests)
-5. security-auditor (security review)
-6. deployment-engineer (CI/CD)
-7. observability-engineer (monitoring)
+Использование:
+- Проектирование системной архитектуры
+- Принятие решений по технологиям
+- Аудит безопасности и ревью
+- Ревью качества кода
+- ML/AI pipeline дизайн
+- Язык-специфичная экспертиза
+- Оркестрация workflow
 
-### Pattern 3: Agent + Skill Integration
+### Opus - Максимальная сложность
 
-Agents provide reasoning, skills provide knowledge:
+Использование:
+- Критически сложные архитектурные решения
+- Исследование больших кодовых баз
+- Комплексная оптимизация
 
-```
-User: "Build FastAPI project with async patterns"
-  ↓
-fastapi-pro agent (orchestrates)
-  ↓
-fastapi-templates skill (provides patterns)
-  ↓
-python-scaffold command (generates project)
-```
+## Расширяемость
 
-### Pattern 4: Multi-Plugin Composition
+### Добавление нового плагина
 
-Complex workflows use multiple plugins:
+1. Создайте директорию: `plugins/{plugin-name}/`
+2. Добавьте компоненты (agents/commands/skills)
+3. Зарегистрируйте в `marketplace.json`
+4. Запустите `/regenerate-docs`
 
-```
-Feature Development Workflow:
-1. backend-development:feature-development
-2. security-scanning:security-hardening
-3. unit-testing:test-generate
-4. code-review-ai:ai-review
-5. cicd-automation:workflow-automate
-6. observability-monitoring:monitor-setup
+### Автоматизация документации
+
+Документация автоматически генерируется из структуры:
+
+```bash
+python scripts/generate-docs.py
 ```
 
-## Versioning & Updates
+Обновляет:
+- `docs/plugins.md`
+- `docs/agents.md`
+- `docs/agent-skills.md`
+- `docs/usage.md`
+- `docs/architecture.md`
 
-### Marketplace Updates
+## Категории плагинов
 
-- Marketplace catalog in `.claude-plugin/marketplace.json`
-- Semantic versioning for plugins
-- Backward compatibility maintained
-- Clear migration guides for breaking changes
+- **accessibility**: 1 плагинов
+- **ai-architecture**: 1 плагинов
+- **ai-development**: 1 плагинов
+- **ai-ml**: 5 плагинов
+- **api**: 2 плагинов
+- **blockchain**: 1 плагинов
+- **business**: 8 плагинов
+- **cloud**: 1 плагинов
+- **code-analysis**: 1 плагинов
+- **data**: 2 плагинов
+- **database**: 3 плагинов
+- **development**: 4 плагинов
+- **documentation**: 2 плагинов
+- **enterprise**: 1 плагинов
+- **executive-leadership**: 1 плагинов
+- **finance**: 2 плагинов
+- **gaming**: 1 плагинов
+- **infrastructure**: 6 плагинов
+- **languages**: 8 плагинов
+- **leadership**: 1 плагинов
+- **marketing**: 5 плагинов
+- **modernization**: 2 плагинов
+- **operations**: 5 плагинов
+- **payments**: 1 плагинов
+- **performance**: 2 плагинов
+- **quality**: 3 плагинов
+- **security**: 4 плагинов
+- **testing**: 1 плагинов
+- **utilities**: 4 плагинов
+- **workflows**: 3 плагинов
 
-### Plugin Updates
 
-- Individual plugin updates don't affect others
-- Skills can be updated independently
-- Agents can be added/removed without breaking workflows
-- Commands maintain stable interfaces
+## Best Practices
 
-## Contributing Guidelines
+1. **Один плагин = одна область** - избегайте смешивания доменов
+2. **Минимальный размер** - только необходимые компоненты
+3. **Четкие триггеры** - описывайте когда использовать агента/скилл
+4. **Правильная модель** - выбирайте модель по сложности задачи
+5. **Прогрессивное раскрытие** - структурируйте скиллы поэтапно
+6. **Документация** - поддерживайте актуальность через автогенерацию
 
-### Adding a Plugin
+## Интеграция и CI/CD
 
-1. Create plugin directory: `plugins/{plugin-name}/`
-2. Add agents and/or commands
-3. Optionally add skills
-4. Update marketplace.json
-5. Document in appropriate category
+### Pre-commit хук
 
-### Adding an Agent
+Автоматическая регенерация документации:
 
-1. Create `plugins/{plugin-name}/agents/{agent-name}.md`
-2. Add frontmatter (name, description, model)
-3. Write comprehensive system prompt
-4. Update plugin definition
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+python scripts/generate-docs.py
+git add docs/*.md
+```
 
-### Adding a Skill
+### GitHub Actions
 
-1. Create `plugins/{plugin-name}/skills/{skill-name}/SKILL.md`
-2. Add YAML frontmatter (name, description with "Use when")
-3. Write skill content with progressive disclosure
-4. Add to plugin's skills array in marketplace.json
+Проверка актуальности документации:
 
-### Quality Standards
+```yaml
+- name: Generate docs
+  run: python scripts/generate-docs.py
 
-- **Clear naming** - Hyphen-case, descriptive
-- **Focused scope** - Single responsibility
-- **Complete documentation** - What, when, how
-- **Tested functionality** - Verify before committing
-- **Spec compliance** - Follow Anthropic guidelines
+- name: Check for changes
+  run: git diff --exit-code docs/
+```
 
-## See Also
+## Производительность
 
-- [Agent Skills](./agent-skills.md) - Modular knowledge packages
-- [Agent Reference](./agents.md) - Complete agent catalog
-- [Plugin Reference](./plugins.md) - All 63 plugins
-- [Usage Guide](./usage.md) - Commands and workflows
+### Оптимизация токенов
+
+- Средний размер плагина: ~3-5 компонентов
+- Lazy loading скиллов
+- Избирательная установка плагинов
+
+### Время активации
+
+- Haiku агенты: ~1-2 сек
+- Sonnet агенты: ~3-5 сек
+- Opus агенты: ~10-15 сек
+
+## Roadmap
+
+- [ ] Автоматическая валидация структуры плагинов
+- [ ] Система версионирования плагинов
+- [ ] Dependency management между плагинами
+- [ ] Метрики использования агентов
+- [ ] A/B тестирование промптов
