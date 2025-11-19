@@ -2649,7 +2649,7 @@
     {
       "name": "hr-business-partner",
       "source": "./plugins/hr-business-partner",
-      "description": "World-class HR Business Partner and HR Director expertise from AWS, Google, Microsoft, Netflix, NVIDIA, OpenAI, Stripe. Comprehensive people management: team motivation, performance reviews, strategic hiring, coaching & development, difficult conversations, stakeholder management, and individual development plans. All artifacts saved in Russian markdown. Features expert agents for HR BP and HR Director roles, plus deep-dive skills on motivation (intrinsic motivation, psychological safety, engagement), performance management (OKRs, calibration, 360-feedback, PIPs), strategic hiring (Bar Raiser, structured interviews, diversity, candidate experience), and coaching frameworks (GROW model, career conversations, mentorship, succession planning).",
+      "description": "World-class HR Business Partner and HR Director expertise from AWS, Google, Microsoft, Netflix, NVIDIA, OpenAI, Stripe. Comprehensive people management: team motivation, performance reviews, strategic hiring, coaching & development, difficult conversations, stakeholder management, individual development plans, executive search, executive terminations. All artifacts saved in Russian markdown. Features expert agents for HR BP and HR Director roles, plus 7 deep-dive skills: (1) Motivation excellence - intrinsic motivation, psychological safety, engagement strategies; (2) Performance management - OKRs, calibration, 360-feedback, PIPs; (3) Strategic hiring - Bar Raiser, structured interviews, diversity hiring; (4) Coaching frameworks - GROW model, career conversations, mentorship; (5) Executive search - C-level hiring, board involvement, executive assessment; (6) Difficult conversations - promotion denials, performance feedback, compensation discussions; (7) Executive terminations - severance negotiations, legal considerations, communication strategy.",
       "version": "1.0.0",
       "author": {
         "name": "Dmitry Lazarenko",
@@ -2692,6 +2692,19 @@
         "pip",
         "promotion",
         "compensation",
+        "executive-search",
+        "c-level-hiring",
+        "executive-termination",
+        "severance-negotiation",
+        "executive-assessment",
+        "board-involvement",
+        "retained-search",
+        "career-conversations",
+        "performance-feedback",
+        "compensation-negotiation",
+        "executive-transitions",
+        "leadership-hiring",
+        "top-management",
         "russian-output",
         "aws-practices",
         "google-practices",
@@ -2715,7 +2728,10 @@
         "./skills/team-motivation-excellence",
         "./skills/performance-review-mastery",
         "./skills/strategic-hiring-excellence",
-        "./skills/coaching-development-frameworks"
+        "./skills/coaching-development-frameworks",
+        "./skills/executive-search-leadership-hiring",
+        "./skills/difficult-career-conversations",
+        "./skills/executive-terminations-transitions"
       ]
     }
   ]
