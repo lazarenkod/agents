@@ -3035,6 +3035,92 @@
         "./skills/difficult-career-conversations",
         "./skills/executive-terminations-transitions"
       ]
+    },
+    {
+      "name": "tech-content-creator",
+      "source": "./plugins/tech-content-creator",
+      "description": "Elite content creation system for high-tech companies, specializing in thought leadership articles for top-tier business and technology media (Forbes, TechCrunch, Harvard Business Review, Wired, Vedomosti, RBC, Habr, VC.ru). Complete workflow: (1) Research & trend analysis → (2) Content ideation → (3) Professional drafting → (4) Rigorous fact-checking → (5) Expert editing → (6) SEO optimization. Features 5 specialized agents: tech-content-strategist (trend research, IMPACT scoring), tech-content-writer (senior-level writing in RU/EN), tech-fact-checker (journalistic verification), content-editor (editorial excellence), seo-content-optimizer (discoverability). Six comprehensive skills: tech-trends-research, enterprise-storytelling, technical-writing-standards, fact-checking-methodology, editorial-excellence, media-publishing-guidelines. All Russian outputs saved as markdown. Mirrors expertise from AWS, Azure, Google Cloud, OpenAI, Anthropic, Microsoft content teams.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "content-creation",
+        "content-strategy",
+        "technical-writing",
+        "thought-leadership",
+        "content-marketing",
+        "tech-journalism",
+        "editorial",
+        "storytelling",
+        "fact-checking",
+        "seo",
+        "content-optimization",
+        "trend-research",
+        "media-relations",
+        "publication-strategy",
+        "forbes",
+        "techcrunch",
+        "harvard-business-review",
+        "wired",
+        "vedomosti",
+        "rbc",
+        "habr",
+        "vc-ru",
+        "business-writing",
+        "technical-content",
+        "case-studies",
+        "whitepapers",
+        "blog-posts",
+        "articles",
+        "content-workflow",
+        "editorial-standards",
+        "writing-quality",
+        "content-excellence",
+        "russian-content",
+        "english-content",
+        "bilingual-content",
+        "enterprise-content",
+        "b2b-content",
+        "technology-trends",
+        "cloud-computing",
+        "ai-ml",
+        "devops",
+        "cybersecurity",
+        "data-engineering",
+        "aws-content",
+        "azure-content",
+        "google-cloud-content",
+        "openai-content",
+        "anthropic-content",
+        "senior-writing"
+      ],
+      "category": "content",
+      "strict": false,
+      "commands": [
+        "./commands/article-workflow.md",
+        "./commands/trend-research.md",
+        "./commands/draft-article.md"
+      ],
+      "agents": [
+        "./agents/tech-content-strategist.md",
+        "./agents/tech-content-writer.md",
+        "./agents/tech-fact-checker.md",
+        "./agents/content-editor.md",
+        "./agents/seo-content-optimizer.md"
+      ],
+      "skills": [
+        "./skills/tech-trends-research",
+        "./skills/enterprise-storytelling",
+        "./skills/technical-writing-standards",
+        "./skills/fact-checking-methodology",
+        "./skills/editorial-excellence",
+        "./skills/media-publishing-guidelines"
+      ]
     }
   ]
 }
