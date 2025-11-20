@@ -1,0 +1,677 @@
+# Complete GitHub Actions CI/CD Pipeline with Kubernetes Deployment
+# This workflow demonstrates:
+# - Multi-stage CI/CD with GitHub Actions
+# - Self-hosted runners in Kubernetes
+# - Security scanning and vulnerability management
+# - Container image building with buildx
+# - Image signing with Cosign
+# - Multi-environment Kubernetes deployment
+# - GitOps integration with ArgoCD
+# - Slack notifications
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  GOLANG_VERSION: '1.21'
+  KUBERNETES_VERSION: 'v1.28.0'
+
+jobs:
+  ###########################################
+  # Job 1: Code Quality and Security Checks
+  ###########################################
+  code-quality:
+    name: Code Quality & Security
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+          cache: true
+
+      # Secret Detection
+      - name: TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --json --fail
+
+      # SAST Analysis
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: auto
+
+      # Dependency Scanning
+      - name: Run Snyk Security Scan
+        uses: snyk/actions/golang@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --json-file-output=snyk-results.json
+
+      - name: Upload Snyk results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: snyk-results.json
+
+      # Linting
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --timeout=10m
+
+      # License Compliance
+      - name: Check Licenses
+        run: |
+          go install github.com/google/go-licenses@latest
+          go-licenses check ./... --disallowed_types=forbidden
+
+  ###########################################
+  # Job 2: Unit and Integration Tests
+  ###########################################
+  test:
+    name: Unit & Integration Tests
+    runs-on: self-hosted
+    needs: code-quality
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+          cache: true
+
+      - name: Run unit tests
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -html=coverage.out -o coverage.html
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/testdb
+          REDIS_URL: redis://localhost:6379
+        run: |
+          go test -v -tags=integration ./tests/integration/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage.html
+
+  ###########################################
+  # Job 3: Build and Push Container Image
+  ###########################################
+  build:
+    name: Build Container Image
+    runs-on: self-hosted
+    needs: [code-quality, test]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom
+          path: sbom.spdx.json
+
+  ###########################################
+  # Job 4: Container Security Scanning
+  ###########################################
+  scan:
+    name: Security Scan Image
+    runs-on: self-hosted
+    needs: build
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Fail on critical vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+      - name: Run Dockle for CIS compliance
+        uses: erzz/dockle-action@v1
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}
+          exit-code: '1'
+          exit-level: fatal
+
+  ###########################################
+  # Job 5: Sign Container Image
+  ###########################################
+  sign:
+    name: Sign Container Image
+    runs-on: self-hosted
+    needs: [build, scan]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sign container image with keyless signing
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}
+
+      - name: Attach SBOM to image
+        run: |
+          cosign attach sbom --sbom sbom.spdx.json \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}
+
+  ###########################################
+  # Job 6: Deploy to Development
+  ###########################################
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: self-hosted
+    needs: [build, scan, sign]
+    if: github.ref == 'refs/heads/develop' || github.event_name == 'pull_request'
+    environment:
+      name: development
+      url: https://dev.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBERNETES_VERSION }}
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DEV }}
+        run: |
+          mkdir -p $HOME/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/myapp \
+            myapp=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }} \
+            -n dev
+
+          kubectl rollout status deployment/myapp -n dev --timeout=5m
+
+      - name: Run smoke tests
+        run: |
+          kubectl run smoke-test \
+            --image=curlimages/curl:latest \
+            --restart=Never \
+            -n dev \
+            --rm -i -- \
+            sh -c "curl -f http://myapp.dev.svc.cluster.local/health"
+
+  ###########################################
+  # Job 7: Deploy to Staging
+  ###########################################
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: self-hosted
+    needs: [build, scan, sign, deploy-dev]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: staging
+      url: https://staging.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBERNETES_VERSION }}
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_STAGING }}
+        run: |
+          mkdir -p $HOME/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/myapp \
+            myapp=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }} \
+            -n staging
+
+          kubectl rollout status deployment/myapp -n staging --timeout=5m
+
+      - name: Run integration tests
+        run: |
+          kubectl apply -f k8s/test-job.yaml -n staging
+          kubectl wait --for=condition=complete job/integration-test -n staging --timeout=10m
+
+      - name: Run performance tests
+        uses: grafana/k6-action@v0.3.0
+        with:
+          filename: tests/performance/load-test.js
+          cloud: false
+        env:
+          TARGET_URL: https://staging.example.com
+
+  ###########################################
+  # Job 8: GitOps - Update ArgoCD
+  ###########################################
+  gitops-update:
+    name: Update GitOps Repository
+    runs-on: self-hosted
+    needs: [build, deploy-staging]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v4
+        with:
+          repository: example/gitops-manifests
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops
+
+      - name: Update image tag
+        run: |
+          cd gitops
+
+          # Update kustomization with new image
+          kustomize edit set image \
+            myapp=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}
+
+          # Commit and push
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Update myapp image to ${{ needs.build.outputs.image-digest }}"
+          git push
+
+      - name: Trigger ArgoCD sync
+        env:
+          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
+        run: |
+          # Install ArgoCD CLI
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+
+          # Sync application
+          ./argocd app sync myapp --server $ARGOCD_SERVER --auth-token $ARGOCD_AUTH_TOKEN
+          ./argocd app wait myapp --health --server $ARGOCD_SERVER --auth-token $ARGOCD_AUTH_TOKEN
+
+  ###########################################
+  # Job 9: Deploy to Production
+  ###########################################
+  deploy-production:
+    name: Deploy to Production
+    runs-on: self-hosted
+    needs: [build, scan, sign, deploy-staging]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: https://example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBERNETES_VERSION }}
+
+      - name: Configure kubeconfig (Multi-cluster)
+        env:
+          KUBECONFIG_US_EAST: ${{ secrets.KUBECONFIG_PROD_US_EAST }}
+          KUBECONFIG_EU_WEST: ${{ secrets.KUBECONFIG_PROD_EU_WEST }}
+        run: |
+          mkdir -p $HOME/.kube
+          echo "$KUBECONFIG_US_EAST" | base64 -d > $HOME/.kube/config-us-east
+          echo "$KUBECONFIG_EU_WEST" | base64 -d > $HOME/.kube/config-eu-west
+
+          # Merge kubeconfigs
+          KUBECONFIG=$HOME/.kube/config-us-east:$HOME/.kube/config-eu-west \
+            kubectl config view --flatten > $HOME/.kube/config
+
+      - name: Canary deployment to US-EAST
+        run: |
+          # Deploy canary (10% traffic)
+          kubectl set image deployment/myapp-canary \
+            myapp=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }} \
+            --context=prod-us-east \
+            -n production
+
+          kubectl rollout status deployment/myapp-canary \
+            --context=prod-us-east \
+            -n production \
+            --timeout=5m
+
+      - name: Monitor canary metrics
+        run: |
+          # Wait 10 minutes and check metrics
+          sleep 600
+
+          # Query Prometheus for error rate
+          ERROR_RATE=$(curl -s "http://prometheus.monitoring.svc.cluster.local/api/v1/query?query=rate(http_requests_total{status=~\"5..\",deployment=\"myapp-canary\"}[5m])" | jq -r '.data.result[0].value[1]')
+
+          if (( $(echo "$ERROR_RATE > 0.01" | bc -l) )); then
+            echo "Error rate too high: $ERROR_RATE"
+            exit 1
+          fi
+
+      - name: Progressive rollout
+        run: |
+          # Full deployment to US-EAST
+          kubectl set image deployment/myapp \
+            myapp=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }} \
+            --context=prod-us-east \
+            -n production
+
+          kubectl rollout status deployment/myapp \
+            --context=prod-us-east \
+            -n production \
+            --timeout=10m
+
+          # Deploy to EU-WEST
+          kubectl set image deployment/myapp \
+            myapp=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }} \
+            --context=prod-eu-west \
+            -n production
+
+          kubectl rollout status deployment/myapp \
+            --context=prod-eu-west \
+            -n production \
+            --timeout=10m
+
+      - name: Verify production deployment
+        run: |
+          # Smoke tests on both clusters
+          for context in prod-us-east prod-eu-west; do
+            kubectl run smoke-test-$context \
+              --image=curlimages/curl:latest \
+              --restart=Never \
+              --context=$context \
+              -n production \
+              --rm -i -- \
+              sh -c "curl -f http://myapp.production.svc.cluster.local/health"
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            sbom.spdx.json
+            coverage.html
+          body: |
+            ## Release ${{ github.ref_name }}
+
+            ### Container Image
+            `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}`
+
+            ### Deployment
+            - US-EAST: ✅ Deployed
+            - EU-WEST: ✅ Deployed
+
+            ### Security
+            - Image signed with Cosign
+            - SBOM attached
+            - Vulnerability scan passed
+          draft: false
+          prerelease: false
+
+  ###########################################
+  # Job 10: Post-Deployment
+  ###########################################
+  post-deploy:
+    name: Post-Deployment Tasks
+    runs-on: self-hosted
+    needs: [deploy-production]
+    if: always()
+
+    steps:
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "Deployment ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "${{ job.status == 'success' && '✅' || '❌' }} Deployment ${{ job.status }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*\n${{ github.ref_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n${{ github.sha }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Actor:*\n${{ github.actor }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Image:*\n`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}`"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Update deployment tracking
+        run: |
+          # Record deployment in tracking system
+          curl -X POST https://deployments.example.com/api/v1/deployments \
+            -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_TRACKER_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "repository": "${{ github.repository }}",
+              "environment": "production",
+              "version": "${{ github.ref_name }}",
+              "image": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}",
+              "deployed_by": "${{ github.actor }}",
+              "deployed_at": "${{ github.event.head_commit.timestamp }}",
+              "status": "${{ job.status }}"
+            }'
+
+###########################################
+# Reusable Workflows
+###########################################
+
+# This workflow can be referenced by other repositories:
+# jobs:
+#   deploy:
+#     uses: example/workflows/.github/workflows/github-actions-k8s.yaml@main
+#     with:
+#       environment: production
+#     secrets: inherit

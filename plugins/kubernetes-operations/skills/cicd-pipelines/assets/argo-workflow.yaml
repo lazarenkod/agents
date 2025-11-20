@@ -1,0 +1,829 @@
+# Complete Argo Workflows CI/CD Pipeline Example
+# This example demonstrates:
+# - DAG-based workflow with parallel execution
+# - Multi-stage security scanning
+# - Container image building and signing
+# - Progressive deployment (dev -> staging -> prod)
+# - Error handling and retries
+# - Artifact management
+# - Conditional execution
+
+---
+# Service Account with necessary permissions
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argo-workflow-sa
+  namespace: argo
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argo-workflow-role
+  namespace: argo
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argo-workflow-rolebinding
+  namespace: argo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argo-workflow-role
+subjects:
+  - kind: ServiceAccount
+    name: argo-workflow-sa
+    namespace: argo
+
+---
+# ClusterRole for multi-namespace deployment
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argo-deployer
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argo-deployer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argo-deployer
+subjects:
+  - kind: ServiceAccount
+    name: argo-workflow-sa
+    namespace: argo
+
+---
+# Main Workflow Definition
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: complete-cicd-
+  namespace: argo
+spec:
+  entrypoint: cicd-pipeline
+  serviceAccountName: argo-workflow-sa
+
+  # Workflow-level parameters
+  arguments:
+    parameters:
+      - name: repo-url
+        value: https://github.com/example/myapp.git
+      - name: branch
+        value: main
+      - name: image-registry
+        value: registry.example.com
+      - name: image-name
+        value: myapp
+      - name: deploy-to-prod
+        value: "false"
+
+  # Shared workspace volume
+  volumeClaimTemplates:
+    - metadata:
+        name: workspace
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: fast-ssd
+
+  # Workflow exit handler
+  onExit: exit-handler
+
+  templates:
+    ###########################################
+    # Main DAG Pipeline
+    ###########################################
+    - name: cicd-pipeline
+      dag:
+        tasks:
+          # ===== Stage 1: Source Checkout =====
+          - name: git-clone
+            template: clone-repository
+            arguments:
+              parameters:
+                - name: repo-url
+                  value: "{{workflow.parameters.repo-url}}"
+                - name: branch
+                  value: "{{workflow.parameters.branch}}"
+
+          # ===== Stage 2: Parallel Security Scans =====
+          - name: secret-detection
+            dependencies: [git-clone]
+            template: trufflehog-scan
+            retryStrategy:
+              limit: 2
+              retryPolicy: OnFailure
+
+          - name: sast-analysis
+            dependencies: [git-clone]
+            template: sonarqube-scan
+            retryStrategy:
+              limit: 2
+              retryPolicy: OnFailure
+
+          - name: dependency-check
+            dependencies: [git-clone]
+            template: snyk-dependency-scan
+            retryStrategy:
+              limit: 2
+              retryPolicy: OnFailure
+
+          - name: license-compliance
+            dependencies: [git-clone]
+            template: license-check
+
+          # ===== Stage 3: Code Quality & Tests =====
+          - name: lint-code
+            dependencies: [git-clone]
+            template: run-linter
+
+          - name: unit-tests
+            dependencies: [git-clone]
+            template: run-unit-tests
+
+          # ===== Stage 4: Build (after all checks pass) =====
+          - name: build-image
+            dependencies:
+              - secret-detection
+              - sast-analysis
+              - dependency-check
+              - license-compliance
+              - lint-code
+              - unit-tests
+            template: kaniko-build
+            arguments:
+              parameters:
+                - name: image-name
+                  value: "{{workflow.parameters.image-registry}}/{{workflow.parameters.image-name}}"
+                - name: image-tag
+                  value: "{{workflow.uid}}"
+
+          # ===== Stage 5: Image Security =====
+          - name: image-vulnerability-scan
+            dependencies: [build-image]
+            template: trivy-image-scan
+            arguments:
+              parameters:
+                - name: image
+                  value: "{{tasks.build-image.outputs.parameters.image}}"
+
+          - name: generate-sbom
+            dependencies: [build-image]
+            template: syft-sbom
+            arguments:
+              parameters:
+                - name: image
+                  value: "{{tasks.build-image.outputs.parameters.image}}"
+
+          - name: image-config-audit
+            dependencies: [build-image]
+            template: dockle-audit
+            arguments:
+              parameters:
+                - name: image
+                  value: "{{tasks.build-image.outputs.parameters.image}}"
+
+          # ===== Stage 6: Sign Image =====
+          - name: sign-image
+            dependencies:
+              - image-vulnerability-scan
+              - generate-sbom
+              - image-config-audit
+            template: cosign-sign
+            arguments:
+              parameters:
+                - name: image
+                  value: "{{tasks.build-image.outputs.parameters.image}}"
+
+          # ===== Stage 7: Deploy to Dev =====
+          - name: deploy-dev
+            dependencies: [sign-image]
+            template: deploy-application
+            arguments:
+              parameters:
+                - name: environment
+                  value: dev
+                - name: image
+                  value: "{{tasks.build-image.outputs.parameters.image}}"
+                - name: replicas
+                  value: "1"
+
+          - name: smoke-test-dev
+            dependencies: [deploy-dev]
+            template: run-smoke-tests
+            arguments:
+              parameters:
+                - name: environment
+                  value: dev
+
+          # ===== Stage 8: Deploy to Staging =====
+          - name: deploy-staging
+            dependencies: [smoke-test-dev]
+            template: deploy-application
+            arguments:
+              parameters:
+                - name: environment
+                  value: staging
+                - name: image
+                  value: "{{tasks.build-image.outputs.parameters.image}}"
+                - name: replicas
+                  value: "2"
+
+          - name: integration-test-staging
+            dependencies: [deploy-staging]
+            template: run-integration-tests
+            arguments:
+              parameters:
+                - name: environment
+                  value: staging
+
+          - name: performance-test-staging
+            dependencies: [deploy-staging]
+            template: run-performance-tests
+            arguments:
+              parameters:
+                - name: environment
+                  value: staging
+
+          # ===== Stage 9: Deploy to Production (Conditional) =====
+          - name: deploy-production
+            dependencies:
+              - integration-test-staging
+              - performance-test-staging
+            when: "{{workflow.parameters.deploy-to-prod}} == true && {{workflow.parameters.branch}} == main"
+            template: deploy-application
+            arguments:
+              parameters:
+                - name: environment
+                  value: production
+                - name: image
+                  value: "{{tasks.build-image.outputs.parameters.image}}"
+                - name: replicas
+                  value: "5"
+
+          - name: smoke-test-production
+            dependencies: [deploy-production]
+            when: "{{workflow.parameters.deploy-to-prod}} == true"
+            template: run-smoke-tests
+            arguments:
+              parameters:
+                - name: environment
+                  value: production
+
+    ###########################################
+    # Template Definitions
+    ###########################################
+
+    # Git Clone Template
+    - name: clone-repository
+      inputs:
+        parameters:
+          - name: repo-url
+          - name: branch
+      outputs:
+        parameters:
+          - name: commit-sha
+            valueFrom:
+              path: /tmp/commit-sha
+      container:
+        image: alpine/git:latest
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            git clone {{inputs.parameters.repo-url}} /workspace/source
+            cd /workspace/source
+            git checkout {{inputs.parameters.branch}}
+            COMMIT_SHA=$(git rev-parse HEAD)
+            echo "Cloned repository at commit: $COMMIT_SHA"
+            echo -n $COMMIT_SHA > /tmp/commit-sha
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    # TruffleHog Secret Detection
+    - name: trufflehog-scan
+      container:
+        image: trufflesecurity/trufflehog:latest
+        command: [trufflehog]
+        args:
+          - filesystem
+          - /workspace/source
+          - --json
+          - --fail
+          - --no-update
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    # SonarQube SAST
+    - name: sonarqube-scan
+      container:
+        image: sonarsource/sonar-scanner-cli:latest
+        command: [sonar-scanner]
+        args:
+          - -Dsonar.projectBaseDir=/workspace/source
+          - -Dsonar.projectKey=myapp
+        env:
+          - name: SONAR_HOST_URL
+            valueFrom:
+              secretKeyRef:
+                name: sonar-config
+                key: url
+          - name: SONAR_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: sonar-config
+                key: token
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    # Snyk Dependency Scan
+    - name: snyk-dependency-scan
+      container:
+        image: snyk/snyk:golang
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            cd /workspace/source
+            snyk test --severity-threshold=high --json > /tmp/snyk-results.json
+            echo "Dependency scan completed"
+        env:
+          - name: SNYK_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: snyk-credentials
+                key: token
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    # License Check
+    - name: license-check
+      container:
+        image: licensefinder/license_finder:latest
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            cd /workspace/source
+            license_finder report --format=json
+            echo "License compliance check completed"
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    # Linter
+    - name: run-linter
+      container:
+        image: golangci/golangci-lint:v1.54
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            cd /workspace/source
+            golangci-lint run --timeout=10m
+            echo "Linting passed"
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    # Unit Tests
+    - name: run-unit-tests
+      outputs:
+        parameters:
+          - name: coverage
+            valueFrom:
+              path: /tmp/coverage.txt
+      container:
+        image: golang:1.21
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            cd /workspace/source
+            go test -v -race -coverprofile=coverage.out ./...
+            COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+            echo "Test coverage: $COVERAGE"
+            echo -n $COVERAGE > /tmp/coverage.txt
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    # Kaniko Build
+    - name: kaniko-build
+      inputs:
+        parameters:
+          - name: image-name
+          - name: image-tag
+      outputs:
+        parameters:
+          - name: image
+            valueFrom:
+              path: /tmp/image-ref
+          - name: digest
+            valueFrom:
+              path: /tmp/image-digest
+      container:
+        image: gcr.io/kaniko-project/executor:v1.11.0
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            IMAGE="{{inputs.parameters.image-name}}:{{inputs.parameters.image-tag}}"
+            /kaniko/executor \
+              --context=/workspace/source \
+              --dockerfile=/workspace/source/Dockerfile \
+              --destination=$IMAGE \
+              --digest-file=/tmp/image-digest \
+              --cache=true \
+              --cache-ttl=24h \
+              --snapshot-mode=redo \
+              --use-new-run
+            echo -n $IMAGE > /tmp/image-ref
+            echo "Built image: $IMAGE"
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+          - name: docker-config
+            mountPath: /kaniko/.docker
+      volumes:
+        - name: docker-config
+          secret:
+            secretName: docker-registry-creds
+            items:
+              - key: .dockerconfigjson
+                path: config.json
+
+    # Trivy Image Scan
+    - name: trivy-image-scan
+      inputs:
+        parameters:
+          - name: image
+      container:
+        image: aquasec/trivy:latest
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            trivy image \
+              --severity CRITICAL,HIGH \
+              --exit-code 1 \
+              --no-progress \
+              --format json \
+              --output /tmp/trivy-results.json \
+              {{inputs.parameters.image}}
+            echo "Image scan completed - no critical vulnerabilities"
+
+    # Syft SBOM Generation
+    - name: syft-sbom
+      inputs:
+        parameters:
+          - name: image
+      outputs:
+        artifacts:
+          - name: sbom
+            path: /tmp/sbom.json
+      container:
+        image: anchore/syft:latest
+        command: [syft]
+        args:
+          - "{{inputs.parameters.image}}"
+          - -o=spdx-json
+          - --file=/tmp/sbom.json
+
+    # Dockle Image Audit
+    - name: dockle-audit
+      inputs:
+        parameters:
+          - name: image
+      container:
+        image: goodwithtech/dockle:latest
+        command: [dockle]
+        args:
+          - --exit-code=1
+          - --exit-level=fatal
+          - "{{inputs.parameters.image}}"
+
+    # Cosign Image Signing
+    - name: cosign-sign
+      inputs:
+        parameters:
+          - name: image
+      container:
+        image: gcr.io/projectsigstore/cosign:v2.2.0
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            cosign sign --key /secrets/cosign.key {{inputs.parameters.image}} --yes
+            echo "Image signed successfully"
+        env:
+          - name: COSIGN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: cosign-keys
+                key: password
+        volumeMounts:
+          - name: cosign-keys
+            mountPath: /secrets
+      volumes:
+        - name: cosign-keys
+          secret:
+            secretName: cosign-keys
+
+    # Deploy Application
+    - name: deploy-application
+      inputs:
+        parameters:
+          - name: environment
+          - name: image
+          - name: replicas
+      resource:
+        action: apply
+        manifest: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: myapp
+            namespace: {{inputs.parameters.environment}}
+            labels:
+              app: myapp
+              environment: {{inputs.parameters.environment}}
+          spec:
+            replicas: {{inputs.parameters.replicas}}
+            selector:
+              matchLabels:
+                app: myapp
+            template:
+              metadata:
+                labels:
+                  app: myapp
+                  environment: {{inputs.parameters.environment}}
+              spec:
+                containers:
+                  - name: myapp
+                    image: {{inputs.parameters.image}}
+                    ports:
+                      - containerPort: 8080
+                        name: http
+                    env:
+                      - name: ENVIRONMENT
+                        value: {{inputs.parameters.environment}}
+                    livenessProbe:
+                      httpGet:
+                        path: /health
+                        port: 8080
+                      initialDelaySeconds: 30
+                      periodSeconds: 10
+                    readinessProbe:
+                      httpGet:
+                        path: /ready
+                        port: 8080
+                      initialDelaySeconds: 5
+                      periodSeconds: 5
+                    resources:
+                      requests:
+                        memory: "256Mi"
+                        cpu: "100m"
+                      limits:
+                        memory: "512Mi"
+                        cpu: "500m"
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 1000
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: myapp
+            namespace: {{inputs.parameters.environment}}
+          spec:
+            selector:
+              app: myapp
+            ports:
+              - protocol: TCP
+                port: 80
+                targetPort: 8080
+            type: ClusterIP
+
+    # Smoke Tests
+    - name: run-smoke-tests
+      inputs:
+        parameters:
+          - name: environment
+      retryStrategy:
+        limit: 3
+        retryPolicy: Always
+        backoff:
+          duration: "30s"
+          factor: 2
+      container:
+        image: curlimages/curl:latest
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            ENDPOINT="http://myapp.{{inputs.parameters.environment}}.svc.cluster.local"
+
+            echo "Running smoke tests against $ENDPOINT"
+
+            # Health check
+            curl -f $ENDPOINT/health || exit 1
+            echo "✓ Health check passed"
+
+            # Readiness check
+            curl -f $ENDPOINT/ready || exit 1
+            echo "✓ Readiness check passed"
+
+            # Basic functionality
+            curl -f $ENDPOINT/api/version || exit 1
+            echo "✓ API responding"
+
+            echo "All smoke tests passed"
+
+    # Integration Tests
+    - name: run-integration-tests
+      inputs:
+        parameters:
+          - name: environment
+      container:
+        image: golang:1.21
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            cd /workspace/source
+            export TEST_ENDPOINT="http://myapp.{{inputs.parameters.environment}}.svc.cluster.local"
+            go test -v -tags=integration ./tests/integration/...
+            echo "Integration tests passed"
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    # Performance Tests
+    - name: run-performance-tests
+      inputs:
+        parameters:
+          - name: environment
+      container:
+        image: grafana/k6:latest
+        command: [k6, run]
+        args:
+          - --vus=10
+          - --duration=30s
+          - --out=json=/tmp/k6-results.json
+          - /workspace/source/tests/performance/load-test.js
+        env:
+          - name: TARGET_URL
+            value: http://myapp.{{inputs.parameters.environment}}.svc.cluster.local
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    ###########################################
+    # Exit Handler
+    ###########################################
+    - name: exit-handler
+      steps:
+        # Send notification
+        - - name: send-notification
+            template: slack-notification
+            arguments:
+              parameters:
+                - name: status
+                  value: "{{workflow.status}}"
+                - name: message
+                  value: |
+                    Workflow: {{workflow.name}}
+                    Status: {{workflow.status}}
+                    Duration: {{workflow.duration}}s
+                    Branch: {{workflow.parameters.branch}}
+
+        # Cleanup on failure
+        - - name: cleanup
+            template: cleanup-resources
+            when: "{{workflow.status}} != Succeeded"
+
+    # Slack Notification
+    - name: slack-notification
+      inputs:
+        parameters:
+          - name: status
+          - name: message
+      container:
+        image: curlimages/curl:latest
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+
+            if [ "{{inputs.parameters.status}}" = "Succeeded" ]; then
+              COLOR="#36a64f"
+              EMOJI=":white_check_mark:"
+            else
+              COLOR="#ff0000"
+              EMOJI=":x:"
+            fi
+
+            curl -X POST "${SLACK_WEBHOOK}" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"attachments\": [{
+                  \"color\": \"${COLOR}\",
+                  \"blocks\": [{
+                    \"type\": \"section\",
+                    \"text\": {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"${EMOJI} *Pipeline Status: {{inputs.parameters.status}}*\n{{inputs.parameters.message}}\"
+                    }
+                  }]
+                }]
+              }"
+        env:
+          - name: SLACK_WEBHOOK
+            valueFrom:
+              secretKeyRef:
+                name: slack-webhook
+                key: url
+
+    # Cleanup Resources
+    - name: cleanup-resources
+      container:
+        image: bitnami/kubectl:latest
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            echo "Cleaning up failed deployment resources..."
+            kubectl delete pods -n dev -l workflow={{workflow.name}} --ignore-not-found=true
+            echo "Cleanup completed"
+
+---
+# WorkflowTemplate for reusability
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: cicd-template
+  namespace: argo
+spec:
+  templates:
+    # Reference all templates from the main workflow
+    # This allows triggering the workflow from other sources
+  entrypoint: cicd-pipeline
+  serviceAccountName: argo-workflow-sa
+
+---
+# CronWorkflow for scheduled runs
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: nightly-build
+  namespace: argo
+spec:
+  schedule: "0 2 * * *"  # 2 AM daily
+  timezone: "America/New_York"
+  concurrencyPolicy: "Forbid"
+  workflowSpec:
+    entrypoint: cicd-pipeline
+    serviceAccountName: argo-workflow-sa
+    arguments:
+      parameters:
+        - name: repo-url
+          value: https://github.com/example/myapp.git
+        - name: branch
+          value: develop
+        - name: image-registry
+          value: registry.example.com
+        - name: image-name
+          value: myapp
+        - name: deploy-to-prod
+          value: "false"

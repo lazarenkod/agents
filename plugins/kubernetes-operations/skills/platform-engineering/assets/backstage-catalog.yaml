@@ -1,0 +1,683 @@
+# Backstage Software Catalog Examples
+# This file demonstrates comprehensive catalog entity definitions
+
+---
+# Domain: Business capability area
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: identity
+  title: Identity and Access Management
+  description: |
+    Authentication, authorization, user management, and security services.
+    Includes all systems related to user identity and access control.
+spec:
+  owner: group:platform-engineering
+
+---
+# System: Group of related components
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: user-management
+  title: User Management System
+  description: |
+    Comprehensive user management system including authentication,
+    authorization, profile management, and user preferences.
+  tags:
+    - auth
+    - users
+    - identity
+  links:
+    - url: https://wiki.company.com/systems/user-management
+      title: System Documentation
+      icon: docs
+    - url: https://miro.com/user-management-architecture
+      title: Architecture Diagram
+      icon: dashboard
+spec:
+  owner: team-backend
+  domain: identity
+
+---
+# Component: Microservice
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: user-service
+  title: User Service
+  description: |
+    Core user service handling user authentication, registration, profile management,
+    and user preferences. Provides RESTful API for all user operations.
+  annotations:
+    # GitHub integration
+    github.com/project-slug: company/user-service
+    github.com/team-slug: company/backend-team
+
+    # Kubernetes integration
+    backstage.io/kubernetes-label-selector: 'app=user-service'
+    backstage.io/kubernetes-namespace: production
+
+    # ArgoCD integration
+    argocd/app-name: user-service-prod
+
+    # Documentation
+    backstage.io/techdocs-ref: dir:.
+
+    # Monitoring and observability
+    grafana/dashboard-selector: 'service=user-service'
+    grafana/alert-label-selector: 'service=user-service'
+    prometheus.io/rule: 'user-service-rules'
+    pagerduty.com/integration-key: abcd1234efgh5678
+
+    # Tracing
+    jaeger/service-name: user-service
+
+    # Logging
+    kibana/dashboard-id: 'user-service-logs'
+
+    # Error tracking
+    sentry.io/project-slug: user-service
+
+    # CI/CD
+    circleci.com/project-slug: github/company/user-service
+    jenkins.io/job-full-name: company/user-service/main
+
+    # Cloud resources
+    aws.amazon.com/rds-instance-id: user-db-prod
+    aws.amazon.com/elasticache-cluster-id: user-cache-prod
+
+    # Cost tracking
+    aws.amazon.com/cost-allocation-tag: user-service
+    kubecost.com/deployment: user-service
+
+    # Security
+    snyk.io/org-id: company
+    snyk.io/project-ids: abc123,def456
+    sonarqube.org/project-key: company_user-service
+
+    # Feature flags
+    launchdarkly.com/project-key: user-service
+
+    # API documentation
+    backstage.io/api-id: user-api
+
+  tags:
+    - nodejs
+    - typescript
+    - api
+    - authentication
+    - rest
+  links:
+    - url: https://api.company.com/users
+      title: Production API
+      icon: api
+    - url: https://staging-api.company.com/users
+      title: Staging API
+      icon: api
+    - url: https://api-docs.company.com/user-service
+      title: API Documentation
+      icon: docs
+    - url: https://datadog.com/dashboard/user-service
+      title: Datadog Dashboard
+      icon: dashboard
+    - url: https://runbooks.company.com/user-service
+      title: Runbooks
+      icon: docs
+spec:
+  type: service
+  lifecycle: production
+  owner: team-backend
+  system: user-management
+  providesApis:
+    - user-api
+    - user-webhooks-api
+  consumesApis:
+    - email-api
+    - notification-api
+    - analytics-api
+  dependsOn:
+    - resource:user-database
+    - resource:user-cache
+    - resource:user-queue
+    - component:auth-service
+
+---
+# Component: Library / SDK
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: user-client-sdk
+  title: User Service Client SDK
+  description: |
+    TypeScript SDK for interacting with the User Service API.
+    Provides typed interfaces and helper functions.
+  annotations:
+    github.com/project-slug: company/user-client-sdk
+    backstage.io/techdocs-ref: dir:.
+    npm.io/package-name: '@company/user-client'
+  tags:
+    - typescript
+    - sdk
+    - library
+  links:
+    - url: https://www.npmjs.com/package/@company/user-client
+      title: NPM Package
+      icon: npm
+spec:
+  type: library
+  lifecycle: production
+  owner: team-backend
+  system: user-management
+  subcomponentOf: component:user-service
+
+---
+# Component: Frontend Application
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: user-admin-portal
+  title: User Administration Portal
+  description: |
+    Internal admin portal for user management, moderation, and support operations.
+  annotations:
+    github.com/project-slug: company/user-admin-portal
+    backstage.io/kubernetes-label-selector: 'app=user-admin-portal'
+    backstage.io/techdocs-ref: dir:.
+    vercel.com/project-id: prj_abc123
+  tags:
+    - react
+    - typescript
+    - admin
+    - frontend
+  links:
+    - url: https://admin.company.com/users
+      title: Production Portal
+      icon: dashboard
+spec:
+  type: website
+  lifecycle: production
+  owner: team-frontend
+  system: user-management
+  consumesApis:
+    - user-api
+  dependsOn:
+    - component:user-service
+
+---
+# Component: Background Worker
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: user-event-processor
+  title: User Event Processor
+  description: |
+    Background worker processing user events from SQS queue.
+    Handles analytics, notifications, and data synchronization.
+  annotations:
+    github.com/project-slug: company/user-event-processor
+    backstage.io/kubernetes-label-selector: 'app=user-event-processor'
+    aws.amazon.com/sqs-queue-url: https://sqs.us-east-1.amazonaws.com/123456789/user-events
+  tags:
+    - nodejs
+    - worker
+    - async
+spec:
+  type: service
+  lifecycle: production
+  owner: team-backend
+  system: user-management
+  consumesApis:
+    - analytics-api
+    - notification-api
+  dependsOn:
+    - resource:user-queue
+    - component:user-service
+
+---
+# API: REST API
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: user-api
+  title: User API
+  description: |
+    RESTful API for user management operations including authentication,
+    registration, profile updates, and user queries.
+  annotations:
+    github.com/project-slug: company/user-service
+  tags:
+    - rest
+    - openapi
+    - v1
+  links:
+    - url: https://api-docs.company.com/user-service
+      title: Interactive API Docs
+      icon: docs
+    - url: https://api.company.com/users/v1/openapi.json
+      title: OpenAPI Spec
+      icon: api
+spec:
+  type: openapi
+  lifecycle: production
+  owner: team-backend
+  system: user-management
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: User API
+      version: 1.0.0
+      description: User management API
+      contact:
+        name: Backend Team
+        email: backend-team@company.com
+    servers:
+      - url: https://api.company.com/users/v1
+        description: Production
+      - url: https://staging-api.company.com/users/v1
+        description: Staging
+    paths:
+      /users:
+        get:
+          summary: List users
+          operationId: listUsers
+          tags: [Users]
+          parameters:
+            - name: page
+              in: query
+              schema:
+                type: integer
+                default: 1
+            - name: limit
+              in: query
+              schema:
+                type: integer
+                default: 20
+                maximum: 100
+          responses:
+            '200':
+              description: Success
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        post:
+          summary: Create user
+          operationId: createUser
+          tags: [Users]
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CreateUserRequest'
+          responses:
+            '201':
+              description: User created
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/User'
+      /users/{id}:
+        get:
+          summary: Get user by ID
+          operationId: getUserById
+          tags: [Users]
+          parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                type: string
+                format: uuid
+          responses:
+            '200':
+              description: Success
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/User'
+            '404':
+              description: User not found
+        put:
+          summary: Update user
+          operationId: updateUser
+          tags: [Users]
+          parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                type: string
+                format: uuid
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UpdateUserRequest'
+          responses:
+            '200':
+              description: User updated
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/User'
+        delete:
+          summary: Delete user
+          operationId: deleteUser
+          tags: [Users]
+          parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                type: string
+                format: uuid
+          responses:
+            '204':
+              description: User deleted
+    components:
+      schemas:
+        User:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+              format: email
+            name:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+        CreateUserRequest:
+          type: object
+          required: [email, name, password]
+          properties:
+            email:
+              type: string
+              format: email
+            name:
+              type: string
+            password:
+              type: string
+              format: password
+        UpdateUserRequest:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            name:
+              type: string
+        Pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+
+---
+# API: Webhook / Event API
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: user-webhooks-api
+  title: User Webhooks API
+  description: |
+    Webhook API for receiving real-time user events.
+    Subscribers receive events for user creation, updates, and deletions.
+  tags:
+    - webhooks
+    - events
+spec:
+  type: asyncapi
+  lifecycle: production
+  owner: team-backend
+  system: user-management
+  definition: |
+    asyncapi: 2.6.0
+    info:
+      title: User Webhooks API
+      version: 1.0.0
+    channels:
+      user.created:
+        subscribe:
+          message:
+            payload:
+              type: object
+              properties:
+                userId:
+                  type: string
+                email:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+      user.updated:
+        subscribe:
+          message:
+            payload:
+              type: object
+              properties:
+                userId:
+                  type: string
+                changes:
+                  type: object
+                timestamp:
+                  type: string
+                  format: date-time
+
+---
+# Resource: Database
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: user-database
+  title: User Database
+  description: |
+    PostgreSQL 15 database storing user accounts, profiles, and preferences.
+    Managed via Crossplane, hosted on AWS RDS.
+  annotations:
+    aws.amazon.com/rds-instance-id: user-db-prod
+    aws.amazon.com/region: us-east-1
+    grafana/dashboard-selector: 'resource=user-database'
+  tags:
+    - postgresql
+    - rds
+    - database
+  links:
+    - url: https://console.aws.amazon.com/rds/home?region=us-east-1#database:id=user-db-prod
+      title: AWS Console
+      icon: cloud
+    - url: https://grafana.company.com/d/user-database
+      title: Grafana Dashboard
+      icon: dashboard
+spec:
+  type: database
+  owner: team-backend
+  system: user-management
+  dependencyOf:
+    - component:user-service
+    - component:user-event-processor
+
+---
+# Resource: Cache
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: user-cache
+  title: User Redis Cache
+  description: |
+    Redis cluster for caching user sessions and frequently accessed user data.
+  annotations:
+    aws.amazon.com/elasticache-cluster-id: user-cache-prod
+    aws.amazon.com/region: us-east-1
+  tags:
+    - redis
+    - cache
+    - elasticache
+spec:
+  type: cache
+  owner: team-backend
+  system: user-management
+  dependencyOf:
+    - component:user-service
+
+---
+# Resource: Message Queue
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: user-queue
+  title: User Events Queue
+  description: |
+    SQS queue for asynchronous user event processing.
+  annotations:
+    aws.amazon.com/sqs-queue-url: https://sqs.us-east-1.amazonaws.com/123456789/user-events
+    aws.amazon.com/region: us-east-1
+  tags:
+    - sqs
+    - queue
+    - events
+spec:
+  type: queue
+  owner: team-backend
+  system: user-management
+  dependencyOf:
+    - component:user-event-processor
+
+---
+# Resource: Storage Bucket
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: user-avatars-bucket
+  title: User Avatars Storage
+  description: |
+    S3 bucket for storing user avatar images.
+  annotations:
+    aws.amazon.com/s3-bucket-name: company-user-avatars-prod
+    aws.amazon.com/region: us-east-1
+  tags:
+    - s3
+    - storage
+    - images
+spec:
+  type: storage
+  owner: team-backend
+  system: user-management
+  dependencyOf:
+    - component:user-service
+
+---
+# Group: Team
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: team-backend
+  title: Backend Engineering Team
+  description: |
+    Backend engineering team responsible for API services, databases,
+    and backend infrastructure.
+  links:
+    - url: https://wiki.company.com/teams/backend
+      title: Team Wiki
+      icon: docs
+    - url: https://calendar.company.com/team-backend
+      title: Team Calendar
+      icon: calendar
+spec:
+  type: team
+  profile:
+    displayName: Backend Team
+    email: backend-team@company.com
+    picture: https://avatars.company.com/backend-team.png
+  parent: engineering
+  children: []
+  members:
+    - alice.smith
+    - bob.jones
+    - charlie.davis
+
+---
+# Group: Parent Organization
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: engineering
+  title: Engineering Department
+  description: All engineering teams
+spec:
+  type: department
+  profile:
+    displayName: Engineering
+    email: engineering@company.com
+  children:
+    - team-backend
+    - team-frontend
+    - team-platform
+    - team-mobile
+
+---
+# User: Individual Engineer
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: alice.smith
+  title: Alice Smith
+spec:
+  profile:
+    displayName: Alice Smith
+    email: alice.smith@company.com
+    picture: https://avatars.company.com/alice.smith.png
+  memberOf:
+    - team-backend
+
+---
+# User: Another Engineer
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: bob.jones
+  title: Bob Jones
+spec:
+  profile:
+    displayName: Bob Jones
+    email: bob.jones@company.com
+    picture: https://avatars.company.com/bob.jones.png
+  memberOf:
+    - team-backend
+
+---
+# Location: Discover entities from GitHub
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: user-management-services
+  description: Auto-discover all user management services
+spec:
+  type: url
+  targets:
+    - https://github.com/company/user-service/blob/main/catalog-info.yaml
+    - https://github.com/company/user-admin-portal/blob/main/catalog-info.yaml
+    - https://github.com/company/user-event-processor/blob/main/catalog-info.yaml
+    - https://github.com/company/user-client-sdk/blob/main/catalog-info.yaml

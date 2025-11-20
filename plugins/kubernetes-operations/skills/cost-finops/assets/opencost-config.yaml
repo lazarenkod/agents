@@ -1,0 +1,603 @@
+# OpenCost Production Configuration
+# Complete configuration for cost monitoring and allocation in Kubernetes
+
+---
+# Namespace for OpenCost deployment
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: opencost
+  labels:
+    app: opencost
+    cost-allocation: "infrastructure"
+
+---
+# ConfigMap: OpenCost Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencost-config
+  namespace: opencost
+data:
+  # Prometheus configuration
+  PROMETHEUS_SERVER_ENDPOINT: "http://prometheus-server.monitoring:80"
+
+  # Cloud provider configuration (choose one)
+  CLOUD_PROVIDER_API_KEY: ""  # Set via secret for security
+
+  # Cloud provider selection
+  # Options: aws, azure, gcp
+  CLOUD_PROVIDER: "aws"
+
+  # AWS specific configuration
+  AWS_CLUSTER_ID: "production"
+  AWS_REGION: "us-east-1"
+  AWS_ACCESS_KEY_ID: ""  # Use IAM role instead (recommended)
+  AWS_SECRET_ACCESS_KEY: ""  # Use IAM role instead
+
+  # Azure specific configuration
+  AZURE_SUBSCRIPTION_ID: ""
+  AZURE_TENANT_ID: ""
+  AZURE_CLIENT_ID: ""
+  AZURE_CLIENT_SECRET: ""
+
+  # GCP specific configuration
+  GCP_PROJECT_ID: ""
+  GCP_BILLING_ACCOUNT_ID: ""
+
+  # Cost model configuration
+  COST_MODEL: "default"
+
+  # Custom pricing (override cloud provider pricing)
+  CUSTOM_CPU_PRICE: ""  # e.g., "0.031" for $0.031 per CPU-hour
+  CUSTOM_MEMORY_PRICE: ""  # e.g., "0.004" for $0.004 per GB-hour
+  CUSTOM_STORAGE_PRICE: ""  # e.g., "0.10" for $0.10 per GB-month
+  CUSTOM_NETWORK_EGRESS_PRICE: ""  # e.g., "0.09" for $0.09 per GB
+
+  # Currency
+  CURRENCY: "USD"
+
+  # Logging
+  LOG_LEVEL: "info"  # debug, info, warn, error
+
+  # API configuration
+  API_PORT: "9003"
+  API_MAX_QUERY_DURATION_MINUTES: "1440"  # 24 hours
+
+  # Allocation configuration
+  ALLOCATION_NODE_LABELS: "node.kubernetes.io/instance-type,topology.kubernetes.io/zone,karpenter.sh/capacity-type"
+  ALLOCATION_NAMESPACE_LABELS: "team,cost-center,environment,project"
+  ALLOCATION_POD_LABELS: "app,component,version"
+
+  # Idle allocation
+  IDLE_COST_ALLOCATION: "proportional"  # proportional, even, or none
+
+  # Network costs
+  NETWORK_COSTS_ENABLED: "true"
+  NETWORK_EGRESS_PRICING_ENABLED: "true"
+
+  # Storage costs
+  STORAGE_COSTS_ENABLED: "true"
+  PV_COSTS_ENABLED: "true"
+
+  # Shared costs
+  SHARED_COSTS_ENABLED: "true"
+
+  # Cache configuration
+  CACHE_ENABLED: "true"
+  CACHE_WARM_ON_STARTUP: "true"
+
+---
+# Secret: Cloud Provider Credentials (example)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: opencost-cloud-credentials
+  namespace: opencost
+type: Opaque
+stringData:
+  # AWS (use IAM role instead in production)
+  aws-access-key-id: ""
+  aws-secret-access-key: ""
+
+  # Azure
+  azure-client-secret: ""
+
+  # GCP (use Workload Identity instead in production)
+  gcp-service-account-key: ""
+
+---
+# ServiceAccount with cloud provider access
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: opencost
+  namespace: opencost
+  annotations:
+    # AWS: IAM role for service account (IRSA)
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/opencost-role"
+
+    # Azure: Managed identity
+    azure.workload.identity/client-id: "CLIENT_ID"
+
+    # GCP: Workload identity
+    iam.gke.io/gcp-service-account: "opencost@PROJECT_ID.iam.gserviceaccount.com"
+
+---
+# Deployment: OpenCost
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opencost
+  namespace: opencost
+  labels:
+    app: opencost
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opencost
+  strategy:
+    type: Recreate  # Avoid duplicate metric collection
+  template:
+    metadata:
+      labels:
+        app: opencost
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9003"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: opencost
+      containers:
+      - name: opencost
+        image: quay.io/kubecost1/kubecost-cost-model:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 9003
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        env:
+        # Prometheus configuration
+        - name: PROMETHEUS_SERVER_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: opencost-config
+              key: PROMETHEUS_SERVER_ENDPOINT
+
+        # Cloud provider
+        - name: CLOUD_PROVIDER
+          valueFrom:
+            configMapKeyRef:
+              name: opencost-config
+              key: CLOUD_PROVIDER
+
+        # AWS configuration
+        - name: AWS_CLUSTER_ID
+          valueFrom:
+            configMapKeyRef:
+              name: opencost-config
+              key: AWS_CLUSTER_ID
+              optional: true
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: opencost-config
+              key: AWS_REGION
+              optional: true
+
+        # Currency
+        - name: CURRENCY
+          valueFrom:
+            configMapKeyRef:
+              name: opencost-config
+              key: CURRENCY
+
+        # Logging
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: opencost-config
+              key: LOG_LEVEL
+
+        # Allocation configuration
+        - name: ALLOCATION_NODE_LABELS
+          valueFrom:
+            configMapKeyRef:
+              name: opencost-config
+              key: ALLOCATION_NODE_LABELS
+        - name: ALLOCATION_NAMESPACE_LABELS
+          valueFrom:
+            configMapKeyRef:
+              name: opencost-config
+              key: ALLOCATION_NAMESPACE_LABELS
+        - name: ALLOCATION_POD_LABELS
+          valueFrom:
+            configMapKeyRef:
+              name: opencost-config
+              key: ALLOCATION_POD_LABELS
+
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9003
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 9003
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 3
+
+        volumeMounts:
+        - name: opencost-data
+          mountPath: /var/opencost
+        - name: cache
+          mountPath: /tmp/opencost-cache
+
+      # Optional: Prometheus exporter sidecar
+      - name: opencost-exporter
+        image: quay.io/kubecost1/opencost-exporter:latest
+        ports:
+        - name: metrics
+          containerPort: 9090
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+
+      volumes:
+      - name: opencost-data
+        persistentVolumeClaim:
+          claimName: opencost-data
+      - name: cache
+        emptyDir: {}
+
+---
+# PersistentVolumeClaim: OpenCost data storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: opencost-data
+  namespace: opencost
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard-ssd  # Adjust to your storage class
+  resources:
+    requests:
+      storage: 50Gi
+
+---
+# Service: OpenCost API
+apiVersion: v1
+kind: Service
+metadata:
+  name: opencost
+  namespace: opencost
+  labels:
+    app: opencost
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 9003
+    targetPort: 9003
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app: opencost
+
+---
+# ServiceMonitor: Prometheus scraping
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: opencost
+  namespace: opencost
+  labels:
+    app: opencost
+spec:
+  selector:
+    matchLabels:
+      app: opencost
+  endpoints:
+  - port: http
+    interval: 30s
+    path: /metrics
+
+---
+# PrometheusRule: Cost anomaly alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: opencost-alerts
+  namespace: opencost
+  labels:
+    app: opencost
+spec:
+  groups:
+  - name: cost.alerts
+    interval: 5m
+    rules:
+    # Alert: Namespace cost spike
+    - alert: NamespaceCostSpike
+      expr: |
+        (
+          sum by (namespace) (opencost_namespace_cpu_cost + opencost_namespace_memory_cost)
+          /
+          avg_over_time(
+            sum by (namespace) (opencost_namespace_cpu_cost + opencost_namespace_memory_cost)[7d:1h]
+          )
+        ) > 1.5
+      for: 30m
+      labels:
+        severity: warning
+        category: cost
+      annotations:
+        summary: "Cost spike detected in namespace {{ $labels.namespace }}"
+        description: "Namespace {{ $labels.namespace }} cost increased {{ $value | humanizePercentage }} above 7-day average"
+
+    # Alert: High resource waste
+    - alert: HighResourceWaste
+      expr: |
+        (
+          sum by (namespace) (
+            kube_pod_container_resource_requests{resource="cpu"}
+            - on(pod, namespace) group_left()
+            avg_over_time(rate(container_cpu_usage_seconds_total[5m])[1h:5m])
+          )
+          /
+          sum by (namespace) (kube_pod_container_resource_requests{resource="cpu"})
+        ) > 0.4
+      for: 2h
+      labels:
+        severity: info
+        category: cost-optimization
+      annotations:
+        summary: "High CPU waste in {{ $labels.namespace }}"
+        description: "Namespace {{ $labels.namespace }} has {{ $value | humanizePercentage }} CPU waste (requested but unused)"
+
+    # Alert: Budget threshold exceeded
+    - alert: NamespaceBudgetExceeded
+      expr: |
+        sum by (namespace) (opencost_namespace_cpu_cost + opencost_namespace_memory_cost) * 730
+        >
+        on(namespace) group_left()
+        kube_namespace_annotations{annotation_cost_budget_monthly=~".+"}
+      for: 1h
+      labels:
+        severity: critical
+        category: budget
+      annotations:
+        summary: "Budget exceeded for namespace {{ $labels.namespace }}"
+        description: "Namespace {{ $labels.namespace }} monthly cost projection exceeds allocated budget"
+
+    # Alert: Orphaned PVC
+    - alert: OrphanedPersistentVolume
+      expr: |
+        (
+          kube_persistentvolumeclaim_info
+          unless on(namespace, persistentvolumeclaim)
+          kube_pod_spec_volumes_persistentvolumeclaims_info
+        ) * on(namespace, persistentvolumeclaim)
+        group_left(storageclass)
+        kube_persistentvolumeclaim_info
+      for: 7d
+      labels:
+        severity: info
+        category: cost-optimization
+      annotations:
+        summary: "Orphaned PVC {{ $labels.persistentvolumeclaim }} in {{ $labels.namespace }}"
+        description: "PVC {{ $labels.persistentvolumeclaim }} has not been attached to any pod for 7 days"
+
+---
+# Ingress: OpenCost UI (optional)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: opencost
+  namespace: opencost
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - opencost.example.com
+    secretName: opencost-tls
+  rules:
+  - host: opencost.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: opencost
+            port:
+              number: 9003
+
+---
+# NetworkPolicy: Allow Prometheus scraping
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: opencost-netpol
+  namespace: opencost
+spec:
+  podSelector:
+    matchLabels:
+      app: opencost
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow Prometheus scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9003
+    - protocol: TCP
+      port: 9090
+  # Allow ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 9003
+
+---
+# CronJob: Daily cost report (optional)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-cost-report
+  namespace: opencost
+spec:
+  schedule: "0 8 * * *"  # 8 AM daily
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: opencost
+          restartPolicy: OnFailure
+          containers:
+          - name: cost-reporter
+            image: curlimages/curl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              # Generate cost report for yesterday
+              YESTERDAY=$(date -d "yesterday" +%Y-%m-%d)
+
+              # Query OpenCost API
+              REPORT=$(curl -s "http://opencost.opencost:9003/allocation/compute" \
+                -d "window=yesterday" \
+                -d "aggregate=namespace" \
+                -d "accumulate=true")
+
+              # Send to Slack (example)
+              curl -X POST $SLACK_WEBHOOK_URL \
+                -H 'Content-Type: application/json' \
+                -d "{
+                  \"text\": \"Daily Cost Report - $YESTERDAY\",
+                  \"blocks\": [{
+                    \"type\": \"section\",
+                    \"text\": {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*Cost Report*\n\`\`\`$REPORT\`\`\`\"
+                    }
+                  }]
+                }"
+            env:
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: slack-webhook
+                  key: url
+
+---
+# RBAC: ClusterRole for cost metrics
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: opencost
+rules:
+- apiGroups: [""]
+  resources:
+    - nodes
+    - pods
+    - services
+    - namespaces
+    - persistentvolumes
+    - persistentvolumeclaims
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources:
+    - deployments
+    - daemonsets
+    - statefulsets
+    - replicasets
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources:
+    - jobs
+    - cronjobs
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - storageclasses
+  verbs: ["get", "list", "watch"]
+
+---
+# RBAC: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: opencost
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: opencost
+subjects:
+- kind: ServiceAccount
+  name: opencost
+  namespace: opencost
+
+---
+# Example: Custom pricing ConfigMap (override cloud costs)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencost-custom-pricing
+  namespace: opencost
+data:
+  pricing.json: |
+    {
+      "CPU": "0.031",
+      "spotCPU": "0.009",
+      "RAM": "0.004",
+      "spotRAM": "0.0012",
+      "storage": "0.10",
+      "zoneNetworkEgress": "0.01",
+      "regionNetworkEgress": "0.01",
+      "internetNetworkEgress": "0.09",
+      "spotLabel": "karpenter.sh/capacity-type",
+      "spotLabelValue": "spot",
+      "awsServiceKeyName": "",
+      "awsServiceKeySecret": "",
+      "awsSpotDataRegion": "us-east-1",
+      "awsSpotDataBucket": "",
+      "awsSpotDataPrefix": "",
+      "azureSubscriptionID": "",
+      "azureClientID": "",
+      "azureClientSecret": "",
+      "azureTenantID": "",
+      "gcpProjectID": ""
+    }

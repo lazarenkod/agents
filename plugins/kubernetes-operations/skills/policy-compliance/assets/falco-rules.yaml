@@ -1,0 +1,648 @@
+# Falco Security Rules Library
+# Production-ready runtime security rules for Kubernetes
+
+---
+# Lists - Reusable value sets
+- list: shell_binaries
+  items: [ash, bash, csh, ksh, sh, tcsh, zsh, dash, rbash]
+
+- list: system_users
+  items: [bin, daemon, games, lp, mail, nobody, sshd, sync, uucp, www-data, systemd-network]
+
+- list: trusted_containers
+  items:
+    - gcr.io/mycompany/trusted-app
+    - registry.company.com/secure
+
+- list: allowed_images
+  items:
+    - gcr.io/mycompany
+    - registry.company.com
+    - quay.io/company
+
+- list: sensitive_file_names
+  items:
+    - /etc/shadow
+    - /etc/sudoers
+    - /etc/pam.conf
+    - /etc/security/pwquality.conf
+    - /root/.ssh/id_rsa
+    - /root/.ssh/id_dsa
+    - /root/.ssh/id_ecdsa
+    - /root/.ssh/id_ed25519
+    - /root/.aws/credentials
+    - /root/.docker/config.json
+
+- list: c2_server_ips
+  items: []
+
+- list: miner_ports
+  items: [3333, 4444, 5555, 7777, 8888, 9999, 14433, 14444, 45560]
+
+- list: package_mgmt_binaries
+  items: [apt, apt-get, dpkg, rpm, yum, dnf, zypper, apk, pip, pip3, npm, gem, composer]
+
+---
+# Macros - Reusable conditions
+- macro: spawned_process
+  condition: evt.type = execve and evt.dir=<
+
+- macro: container
+  condition: container.id != host
+
+- macro: interactive
+  condition: >
+    ((proc.aname=sshd and proc.name != sshd) or
+    proc.name=systemd-logind or proc.name=login)
+
+- macro: shell_procs
+  condition: proc.name in (shell_binaries)
+
+- macro: system_users
+  condition: user.name in (system_users)
+
+- macro: inbound
+  condition: >
+    (evt.type in (accept, listen) and evt.dir=<)
+
+- macro: outbound
+  condition: >
+    (evt.type = connect and evt.dir=< and
+     (fd.typechar = 4 or fd.typechar = 6) and
+     (fd.ip != "0.0.0.0" and fd.net != "127.0.0.0/8"))
+
+- macro: open_write
+  condition: >
+    (evt.type in (open, openat, openat2) and
+     evt.is_open_write=true and
+     fd.typechar='f' and
+     fd.num>=0)
+
+- macro: open_read
+  condition: >
+    (evt.type in (open, openat, openat2) and
+     evt.is_open_read=true and
+     fd.typechar='f' and
+     fd.num>=0)
+
+- macro: sensitive_files
+  condition: >
+    fd.name in (sensitive_file_names) or
+    fd.name startswith /etc/sudoers.d/ or
+    fd.name startswith /root/.ssh/
+
+- macro: trusted_containers
+  condition: >
+    container.image.repository in (trusted_containers)
+
+- macro: user_known_package_manager_in_container
+  condition: (never_true)
+
+- macro: user_expected_terminal_shell_in_container_conditions
+  condition: (never_true)
+
+- macro: user_known_system_user_login
+  condition: (never_true)
+
+- macro: user_known_outbound_connection_destination
+  condition: (never_true)
+
+- macro: user_known_cardholder_data_access
+  condition: (never_true)
+
+- macro: user_known_phi_access
+  condition: (never_true)
+
+- macro: never_true
+  condition: (evt.num=0)
+
+---
+# Container Security Rules
+
+- rule: Terminal Shell in Container
+  desc: A shell was spawned in a container (interactive TTY)
+  condition: >
+    spawned_process and
+    container and
+    shell_procs and
+    proc.tty != 0 and
+    not user_expected_terminal_shell_in_container_conditions
+  output: >
+    Shell spawned in container
+    (user=%user.name user_loginuid=%user.loginuid
+    container_id=%container.id container_name=%container.name
+    shell=%proc.name parent=%proc.pname
+    cmdline=%proc.cmdline terminal=%proc.tty
+    image=%container.image.repository:%container.image.tag)
+  priority: NOTICE
+  tags: [container, shell, mitre_execution, T1059]
+
+- rule: Launch Privileged Container
+  desc: Detect the initial process started in a privileged container
+  condition: >
+    evt.type = container and
+    container.privileged = true and
+    not trusted_containers
+  output: >
+    Privileged container started
+    (user=%user.name user_loginuid=%user.loginuid
+    command=%proc.cmdline
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository:%container.image.tag)
+  priority: WARNING
+  tags: [container, cis, mitre_privilege_escalation, T1611]
+
+- rule: Launch Sensitive Mount Container
+  desc: Detect container with sensitive host path mounts
+  condition: >
+    evt.type = container and
+    container.mount.dest in (
+      /proc, /var/run/docker.sock, /,
+      /etc, /root, /var/run/crio/crio.sock,
+      /run/containerd/containerd.sock,
+      /var/lib/kubelet, /var/lib/kubelet/pki,
+      /etc/kubernetes, /etc/kubernetes/manifests
+    )
+  output: >
+    Container with sensitive mount started
+    (user=%user.name user_loginuid=%user.loginuid
+    command=%proc.cmdline
+    container_id=%container.id container_name=%container.name
+    mount_source=%container.mount.source
+    mount_dest=%container.mount.dest
+    image=%container.image.repository:%container.image.tag)
+  priority: CRITICAL
+  tags: [container, cis, mitre_persistence, T1611]
+
+- rule: Container Run as Root User
+  desc: Detect container running as root user
+  condition: >
+    evt.type = container and
+    container and
+    proc.vpgid = 1 and
+    user.uid = 0 and
+    not trusted_containers
+  output: >
+    Container running as root
+    (user=%user.name user_uid=%user.uid
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository:%container.image.tag
+    command=%proc.cmdline)
+  priority: WARNING
+  tags: [container, users, mitre_execution]
+
+---
+# Process Execution Rules
+
+- rule: Reverse Shell
+  desc: Detect bash/sh reverse shell connection
+  condition: >
+    spawned_process and
+    shell_procs and
+    (proc.cmdline contains "-i" and
+     (proc.cmdline contains "/dev/tcp/" or
+      proc.cmdline contains "/dev/udp/" or
+      proc.cmdline contains ">&" or
+      proc.cmdline contains "2>&1"))
+  output: >
+    Reverse shell detected
+    (user=%user.name user_loginuid=%user.loginuid
+    process=%proc.name parent=%proc.pname
+    cmdline=%proc.cmdline terminal=%proc.tty
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository:%container.image.tag)
+  priority: CRITICAL
+  tags: [network, mitre_execution, T1059]
+
+- rule: Netcat Remote Code Execution
+  desc: Detect netcat being used for remote code execution
+  condition: >
+    spawned_process and
+    ((proc.name = "nc" and (proc.args contains "-e" or proc.args contains "-c")) or
+     (proc.name = "ncat" and (proc.args contains "-e" or proc.args contains "-c" or proc.args contains "--sh-exec" or proc.args contains "--exec")))
+  output: >
+    Netcat remote code execution detected
+    (user=%user.name user_loginuid=%user.loginuid
+    process=%proc.name cmdline=%proc.cmdline
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: CRITICAL
+  tags: [network, mitre_execution, T1059]
+
+- rule: Detect crypto miners using Stratum protocol
+  desc: Detect cryptocurrency miners based on network behavior
+  condition: >
+    outbound and
+    (fd.sport in (miner_ports) or fd.dport in (miner_ports)) and
+    fd.l4proto = tcp and
+    container and
+    not trusted_containers
+  output: >
+    Crypto miner detected
+    (user=%user.name user_loginuid=%user.loginuid
+    process=%proc.name connection=%fd.name
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository:%container.image.tag)
+  priority: CRITICAL
+  tags: [network, mitre_impact, T1496]
+
+- rule: System User Interactive
+  desc: System user spawned an interactive shell
+  condition: >
+    spawned_process and
+    system_users and
+    interactive and
+    not user_known_system_user_login
+  output: >
+    System user spawned shell
+    (user=%user.name user_loginuid=%user.loginuid
+    process=%proc.name parent=%proc.pname
+    terminal=%proc.tty
+    container_id=%container.id container_name=%container.name)
+  priority: WARNING
+  tags: [users, mitre_execution, T1059]
+
+- rule: Suspicious Process Spawned
+  desc: Detect suspicious process execution patterns
+  condition: >
+    spawned_process and
+    container and
+    (proc.name in (wget, curl) and proc.args contains "http" and
+     (proc.args contains "|" or proc.args contains "bash" or proc.args contains "sh")) and
+    not trusted_containers
+  output: >
+    Suspicious process execution
+    (user=%user.name process=%proc.name
+    cmdline=%proc.cmdline parent=%proc.pname
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: WARNING
+  tags: [process, mitre_execution]
+
+---
+# File System Rules
+
+- rule: Write Below /etc
+  desc: Modification of critical system files
+  condition: >
+    open_write and
+    fd.name startswith /etc and
+    not fd.name in (
+      /etc/ld.so.cache,
+      /etc/resolv.conf,
+      /etc/hostname,
+      /etc/hosts
+    ) and
+    not proc.name in (
+      dpkg, rpm, yum, apt-get,
+      package-cleanup, dnf, systemd
+    ) and
+    not container.image.repository in (allowed_images)
+  output: >
+    File below /etc opened for writing
+    (user=%user.name user_loginuid=%user.loginuid
+    command=%proc.cmdline file=%fd.name
+    parent=%proc.pname
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository:%container.image.tag)
+  priority: ERROR
+  tags: [filesystem, mitre_persistence, T1222]
+
+- rule: Read Sensitive File
+  desc: Access to sensitive files
+  condition: >
+    open_read and
+    sensitive_files and
+    not proc.name in (
+      awk, cat, curl, cut, diff, grep,
+      head, sed, tail, tee, wget, sshd,
+      systemd, systemd-logind
+    ) and
+    not trusted_containers
+  output: >
+    Sensitive file accessed
+    (user=%user.name user_loginuid=%user.loginuid
+    command=%proc.cmdline file=%fd.name
+    parent=%proc.pname
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: WARNING
+  tags: [filesystem, mitre_credential_access, T1552, T1081]
+
+- rule: Modify Shell Configuration File
+  desc: Detect modification of shell configuration files
+  condition: >
+    open_write and
+    (fd.name startswith /root/.bash or
+     fd.name startswith /home/.bash or
+     fd.name = /root/.profile or
+     fd.name startswith /home/.profile or
+     fd.name = /root/.zshrc or
+     fd.name startswith /home/.zshrc) and
+    not proc.name in (vi, vim, nano, emacs)
+  output: >
+    Shell configuration file modified
+    (user=%user.name file=%fd.name
+    process=%proc.name cmdline=%proc.cmdline
+    container_id=%container.id container_name=%container.name)
+  priority: WARNING
+  tags: [filesystem, mitre_persistence, T1546]
+
+- rule: Create Files Below /dev
+  desc: Detect file creation below /dev (possible rootkit)
+  condition: >
+    evt.type = create and
+    evt.dir=< and
+    fd.name startswith /dev and
+    not fd.name startswith /dev/shm and
+    not fd.name startswith /dev/pts and
+    not proc.name in (systemd, udevd)
+  output: >
+    File created below /dev
+    (user=%user.name file=%fd.name
+    process=%proc.name cmdline=%proc.cmdline
+    container_id=%container.id container_name=%container.name)
+  priority: WARNING
+  tags: [filesystem, mitre_persistence]
+
+---
+# Network Rules
+
+- rule: Outbound Connection to C2 Servers
+  desc: Detect outbound connections to known C2 servers
+  condition: >
+    outbound and
+    fd.sip in (c2_server_ips) and
+    not trusted_containers
+  output: >
+    Outbound connection to C2 server
+    (user=%user.name process=%proc.name
+    connection=%fd.name
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: CRITICAL
+  tags: [network, mitre_command_and_control, T1071]
+
+- rule: Unexpected Outbound Connection
+  desc: Container opened unexpected outbound connection
+  condition: >
+    outbound and
+    container and
+    not fd.snet in (
+      "10.0.0.0/8",
+      "172.16.0.0/12",
+      "192.168.0.0/16"
+    ) and
+    not user_known_outbound_connection_destination
+  output: >
+    Unexpected outbound connection
+    (user=%user.name process=%proc.name
+    connection=%fd.name proto=%fd.l4proto
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: NOTICE
+  tags: [network, mitre_command_and_control]
+
+- rule: Inbound Connection from Unexpected Source
+  desc: Detect inbound connection from unexpected source
+  condition: >
+    inbound and
+    container and
+    not fd.cip in ("127.0.0.1", "::1") and
+    not fd.snet in (
+      "10.0.0.0/8",
+      "172.16.0.0/12",
+      "192.168.0.0/16"
+    )
+  output: >
+    Inbound connection from unexpected source
+    (user=%user.name process=%proc.name
+    connection=%fd.name
+    container_id=%container.id container_name=%container.name)
+  priority: NOTICE
+  tags: [network]
+
+---
+# Application-Specific Rules
+
+- rule: Unauthorized Database Access
+  desc: Non-database process accessing database files
+  condition: >
+    open_read and
+    (fd.name glob "/var/lib/postgresql/*/base/*" or
+     fd.name glob "/var/lib/mysql/*" or
+     fd.name glob "/data/mongodb/*") and
+    not proc.name in (postgres, mysqld, mongod, pg_dump, mysqldump, mongodump) and
+    not container.image.repository contains "postgres" and
+    not container.image.repository contains "mysql" and
+    not container.image.repository contains "mongodb"
+  output: >
+    Unauthorized database file access
+    (user=%user.name process=%proc.name
+    file=%fd.name cmdline=%proc.cmdline
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: CRITICAL
+  tags: [database, filesystem, mitre_collection]
+
+- rule: Web Server Spawned Shell
+  desc: Web server process spawned a shell
+  condition: >
+    spawned_process and
+    shell_procs and
+    (proc.pname in (nginx, httpd, apache, apache2, tomcat, java, node) or
+     proc.aname[2] in (nginx, httpd, apache, apache2, tomcat, java, node)) and
+    not proc.cmdline contains "logrotate"
+  output: >
+    Web server spawned shell (possible webshell)
+    (user=%user.name shell=%proc.name
+    parent=%proc.pname cmdline=%proc.cmdline
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: CRITICAL
+  tags: [webserver, mitre_persistence, T1505]
+
+- rule: Package Management Process in Container
+  desc: Package manager executed in container
+  condition: >
+    spawned_process and
+    container and
+    proc.name in (package_mgmt_binaries) and
+    not user_known_package_manager_in_container
+  output: >
+    Package manager in container
+    (user=%user.name process=%proc.name
+    cmdline=%proc.cmdline
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository:%container.image.tag)
+  priority: WARNING
+  tags: [container, software, mitre_persistence]
+
+---
+# Compliance Rules
+
+- rule: PCI-DSS - Cardholder Data Access
+  desc: Access to files containing cardholder data
+  condition: >
+    open_read and
+    (fd.name glob "/data/cardholder/*" or
+     fd.name glob "/var/lib/payment/*") and
+    not proc.name in (payment-processor, vault-service) and
+    not user_known_cardholder_data_access
+  output: >
+    Cardholder data accessed
+    (user=%user.name user_loginuid=%user.loginuid
+    process=%proc.name file=%fd.name
+    cmdline=%proc.cmdline
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: CRITICAL
+  tags: [pci_dss, compliance, T1552]
+
+- rule: HIPAA - PHI Data Access
+  desc: Access to Protected Health Information
+  condition: >
+    open_read and
+    (fd.name glob "/data/phi/*" or
+     fd.name glob "/mnt/ehr/*") and
+    not proc.name in (ehr-service, patient-portal, billing-system) and
+    not user_known_phi_access
+  output: >
+    PHI data accessed
+    (user=%user.name user_loginuid=%user.loginuid
+    process=%proc.name file=%fd.name
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: CRITICAL
+  tags: [hipaa, compliance, T1552]
+
+- rule: GDPR - Personal Data Access
+  desc: Log access to personal data
+  condition: >
+    open_read and
+    (fd.name glob "/data/personal/*" or
+     fd.name glob "/data/customer/*") and
+    not proc.name in (customer-service, gdpr-compliance-agent)
+  output: >
+    Personal data accessed
+    (user=%user.name process=%proc.name
+    file=%fd.name
+    purpose=%container.labels.data-processing-purpose
+    container_id=%container.id container_name=%container.name)
+  priority: INFO
+  tags: [gdpr, compliance, article32]
+
+---
+# Kubernetes-Specific Rules
+
+- rule: Contact K8S API Server From Container
+  desc: Detect attempts to contact the K8s API server from a container
+  condition: >
+    outbound and
+    container and
+    fd.sip.name = "kubernetes.default.svc.cluster.local" and
+    not k8s.ns.name in (kube-system, monitoring)
+  output: >
+    Container contacted Kubernetes API server
+    (user=%user.name process=%proc.name
+    connection=%fd.name
+    container_id=%container.id container_name=%container.name
+    namespace=%k8s.ns.name pod=%k8s.pod.name
+    image=%container.image.repository)
+  priority: NOTICE
+  tags: [k8s, network]
+
+- rule: Create Privileged Pod
+  desc: Detect creation of privileged pod via K8s API
+  condition: >
+    kevt and
+    ka.verb = create and
+    ka.target.resource = pods and
+    ka.req.pod.containers.privileged = true
+  output: >
+    Privileged pod created
+    (user=%ka.user.name
+    pod=%ka.target.name
+    namespace=%ka.target.namespace
+    image=%ka.req.pod.containers.image)
+  priority: WARNING
+  tags: [k8s_audit, privileged]
+
+- rule: K8s Secret Access
+  desc: Detect access to sensitive K8s secrets
+  condition: >
+    kevt and
+    ka.verb in (get, list) and
+    ka.target.resource = secrets and
+    ka.target.name in (
+      database-credentials,
+      api-keys,
+      tls-certificates
+    )
+  output: >
+    Sensitive K8s secret accessed
+    (user=%ka.user.name verb=%ka.verb
+    secret=%ka.target.name
+    namespace=%ka.target.namespace)
+  priority: WARNING
+  tags: [k8s_audit]
+
+- rule: Exec into Container
+  desc: Detect kubectl exec into container
+  condition: >
+    kevt_started and
+    ka.verb = create and
+    ka.uri.param contains "exec"
+  output: >
+    Exec into container
+    (user=%ka.user.name
+    pod=%ka.target.name
+    namespace=%ka.target.namespace
+    command=%ka.uri.param)
+  priority: NOTICE
+  tags: [k8s_audit, exec]
+
+---
+# CIS Kubernetes Benchmark Rules
+
+- rule: CIS 5.2.1 - Minimize Privileged Containers
+  desc: CIS Kubernetes Benchmark 5.2.1
+  condition: >
+    evt.type = container and
+    container.privileged = true
+  output: >
+    CIS 5.2.1 - Privileged container detected
+    (user=%user.name
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: WARNING
+  tags: [cis, cis_5_2_1]
+
+- rule: CIS 5.2.2 - Minimize Containers Running as Root
+  desc: CIS Kubernetes Benchmark 5.2.2
+  condition: >
+    evt.type = container and
+    container and
+    user.uid = 0
+  output: >
+    CIS 5.2.2 - Container running as root
+    (user=%user.name user_uid=%user.uid
+    container_id=%container.id container_name=%container.name
+    image=%container.image.repository)
+  priority: WARNING
+  tags: [cis, cis_5_2_2]
+
+- rule: CIS 5.2.6 - Minimize Privilege Escalation
+  desc: CIS Kubernetes Benchmark 5.2.6
+  condition: >
+    spawned_process and
+    container and
+    proc.name in (sudo, su) and
+    not trusted_containers
+  output: >
+    CIS 5.2.6 - Privilege escalation attempt
+    (user=%user.name process=%proc.name
+    cmdline=%proc.cmdline
+    container_id=%container.id container_name=%container.name)
+  priority: WARNING
+  tags: [cis, cis_5_2_6, mitre_privilege_escalation]

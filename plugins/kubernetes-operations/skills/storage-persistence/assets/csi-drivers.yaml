@@ -1,0 +1,693 @@
+# CSI Driver Configurations for Major Cloud Providers
+# Production-grade storage configurations for AWS EBS, Azure Disk, and GCP Persistent Disk
+
+# ============================================================================
+# AWS EBS CSI DRIVER
+# ============================================================================
+
+---
+# AWS EBS CSI Driver Installation (via Helm)
+# helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+# helm upgrade --install aws-ebs-csi-driver aws-ebs-csi-driver/aws-ebs-csi-driver \
+#   --namespace kube-system \
+#   --set enableVolumeScheduling=true \
+#   --set enableVolumeResizing=true \
+#   --set enableVolumeSnapshot=true
+
+# AWS EBS GP3 - General Purpose SSD (Recommended)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "3000"           # 3000-16000 IOPS
+  throughput: "125"      # 125-1000 MB/s
+  encrypted: "true"
+  # Optional: Use specific KMS key
+  # kmsKeyId: arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012
+  # Optional: Add tags
+  # tagSpecification_1: "Name=ebs-gp3-volume"
+  # tagSpecification_2: "Environment=production"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# AWS EBS GP3 - High Performance
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3-high-perf
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "16000"          # Maximum IOPS
+  throughput: "1000"     # Maximum throughput
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# AWS EBS IO2 - Provisioned IOPS SSD (High-performance databases)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-io2
+provisioner: ebs.csi.aws.com
+parameters:
+  type: io2
+  iops: "10000"          # 100-64000 IOPS (io2 Block Express: up to 256000)
+  encrypted: "true"
+  # io2 provides 99.999% durability
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Retain  # Retain for production databases
+
+---
+# AWS EBS ST1 - Throughput Optimized HDD (Big data)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-st1
+provisioner: ebs.csi.aws.com
+parameters:
+  type: st1
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# AWS EBS SC1 - Cold HDD (Archival)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-sc1
+provisioner: ebs.csi.aws.com
+parameters:
+  type: sc1
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# AWS EBS with Topology (Multi-AZ)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3-multi-az
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  encrypted: "true"
+allowedTopologies:
+- matchLabelExpressions:
+  - key: topology.ebs.csi.aws.com/zone
+    values:
+    - us-east-1a
+    - us-east-1b
+    - us-east-1c
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# AWS EBS Volume Snapshot Class
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: ebs-snapclass
+driver: ebs.csi.aws.com
+deletionPolicy: Delete
+parameters:
+  # Optional: Add tags to snapshots
+  tagSpecification_1: "Name=ebs-snapshot"
+  tagSpecification_2: "CreatedBy=velero"
+
+---
+# Example PVC using EBS GP3
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ebs-gp3-claim
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 100Gi
+
+# ============================================================================
+# AZURE DISK CSI DRIVER
+# ============================================================================
+
+---
+# Azure Disk CSI Driver is pre-installed on AKS 1.21+
+# Verify: kubectl get pods -n kube-system -l app=csi-azuredisk-controller
+
+# Azure Premium SSD v2 (Latest generation - Best performance)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azure-disk-premium-ssd-v2
+provisioner: disk.csi.azure.com
+parameters:
+  skuName: PremiumV2_LRS
+  diskIOPSReadWrite: "5000"      # 3000-80000 IOPS
+  diskMBpsReadWrite: "200"       # 125-1200 MB/s
+  cachingMode: None              # v2 doesn't support caching
+  networkAccessPolicy: AllowAll
+  publicNetworkAccess: Enabled
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# Azure Premium SSD (Production workloads)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azure-disk-premium
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: disk.csi.azure.com
+parameters:
+  skuName: Premium_LRS          # or Premium_ZRS for zone-redundant
+  cachingMode: ReadOnly         # None, ReadOnly, or ReadWrite
+  kind: Managed
+  # Optional: Disk encryption set
+  # diskEncryptionSetID: /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Compute/diskEncryptionSets/<des>
+  # Optional: Resource group for disks
+  # resourceGroup: disk-resource-group
+  # Optional: Tags
+  # tags: "environment=production,team=platform"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# Azure Premium SSD - Zone Redundant
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azure-disk-premium-zrs
+provisioner: disk.csi.azure.com
+parameters:
+  skuName: Premium_ZRS
+  cachingMode: ReadOnly
+allowedTopologies:
+- matchLabelExpressions:
+  - key: topology.disk.csi.azure.com/zone
+    values:
+    - eastus-1
+    - eastus-2
+    - eastus-3
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# Azure Standard SSD (Dev/test, web servers)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azure-disk-standard-ssd
+provisioner: disk.csi.azure.com
+parameters:
+  skuName: StandardSSD_LRS      # or StandardSSD_ZRS
+  cachingMode: ReadOnly
+  kind: Managed
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# Azure Standard HDD (Backup, archival)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azure-disk-standard-hdd
+provisioner: disk.csi.azure.com
+parameters:
+  skuName: Standard_LRS
+  cachingMode: None
+  kind: Managed
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# Azure Ultra Disk (Highest performance - SAP HANA, SQL)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azure-disk-ultra
+provisioner: disk.csi.azure.com
+parameters:
+  skuName: UltraSSD_LRS
+  cachingMode: None
+  diskIOPSReadWrite: "20000"     # Up to 160000 IOPS
+  diskMBpsReadWrite: "1000"      # Up to 2000 MB/s
+  # Ultra disk requires specific VM sizes and availability zones
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# Azure Disk Volume Snapshot Class
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: azure-disk-snapclass
+driver: disk.csi.azure.com
+deletionPolicy: Delete
+parameters:
+  incremental: "true"  # Use incremental snapshots
+  # Optional: Resource group for snapshots
+  # resourceGroup: snapshot-resource-group
+  # Optional: Tags
+  # tags: "environment=production"
+
+---
+# Example PVC using Azure Premium SSD
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: azure-premium-claim
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: azure-disk-premium
+  resources:
+    requests:
+      storage: 100Gi
+
+# ============================================================================
+# GCP PERSISTENT DISK CSI DRIVER
+# ============================================================================
+
+---
+# GCP PD CSI Driver is pre-installed on GKE 1.18+
+# Enable: gcloud container clusters update CLUSTER_NAME --update-addons=GcePersistentDiskCsiDriver=ENABLED
+
+# GCP Balanced Persistent Disk (Recommended default)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gcp-pd-balanced
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-balanced
+  replication-type: none        # or regional-pd for replication
+  # Optional: Disk encryption
+  # disk-encryption-kms-key: projects/<project>/locations/<location>/keyRings/<keyring>/cryptoKeys/<key>
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# GCP SSD Persistent Disk (High performance)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gcp-pd-ssd
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-ssd
+  replication-type: none
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# GCP SSD Regional Persistent Disk (High availability)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gcp-pd-ssd-regional
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-ssd
+  replication-type: regional-pd
+allowedTopologies:
+- matchLabelExpressions:
+  - key: topology.gke.io/zone
+    values:
+    - us-central1-a
+    - us-central1-b
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# GCP Standard Persistent Disk (Sequential workloads)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gcp-pd-standard
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-standard
+  replication-type: none
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# GCP Extreme Persistent Disk (Maximum performance)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gcp-pd-extreme
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-extreme
+  replication-type: none
+  provisioned-iops-on-create: "100000"  # Up to 120000 IOPS
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# GCP Hyperdisk Balanced (Modern high-performance)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gcp-hyperdisk-balanced
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: hyperdisk-balanced
+  provisioned-iops-on-create: "10000"
+  provisioned-throughput-on-create: "300"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# GCP PD Volume Snapshot Class
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: gcp-pd-snapclass
+driver: pd.csi.storage.gke.io
+deletionPolicy: Delete
+parameters:
+  storage-locations: us-central1  # Optional: specify snapshot location
+  # Optional: Snapshot type (archive for long-term storage)
+  # snapshot-type: snapshots  # or archive
+
+---
+# Example PVC using GCP Balanced PD
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gcp-balanced-claim
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: gcp-pd-balanced
+  resources:
+    requests:
+      storage: 100Gi
+
+# ============================================================================
+# VOLUME SNAPSHOT EXAMPLES
+# ============================================================================
+
+---
+# Create snapshot from AWS EBS PVC
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: ebs-snapshot-example
+  namespace: default
+spec:
+  volumeSnapshotClassName: ebs-snapclass
+  source:
+    persistentVolumeClaimName: ebs-gp3-claim
+
+---
+# Create snapshot from Azure Disk PVC
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: azure-snapshot-example
+  namespace: default
+spec:
+  volumeSnapshotClassName: azure-disk-snapclass
+  source:
+    persistentVolumeClaimName: azure-premium-claim
+
+---
+# Create snapshot from GCP PD PVC
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: gcp-snapshot-example
+  namespace: default
+spec:
+  volumeSnapshotClassName: gcp-pd-snapclass
+  source:
+    persistentVolumeClaimName: gcp-balanced-claim
+
+# ============================================================================
+# RESTORE FROM SNAPSHOT EXAMPLES
+# ============================================================================
+
+---
+# Restore AWS EBS volume from snapshot
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ebs-restore-from-snapshot
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 100Gi
+  dataSource:
+    name: ebs-snapshot-example
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+
+---
+# Restore Azure Disk from snapshot
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: azure-restore-from-snapshot
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: azure-disk-premium
+  resources:
+    requests:
+      storage: 100Gi
+  dataSource:
+    name: azure-snapshot-example
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+
+---
+# Restore GCP PD from snapshot
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gcp-restore-from-snapshot
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: gcp-pd-balanced
+  resources:
+    requests:
+      storage: 100Gi
+  dataSource:
+    name: gcp-snapshot-example
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+
+# ============================================================================
+# VOLUME CLONING EXAMPLES
+# ============================================================================
+
+---
+# Clone AWS EBS volume
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ebs-cloned-pvc
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: ebs-gp3
+  resources:
+    requests:
+      storage: 100Gi
+  dataSource:
+    name: ebs-gp3-claim
+    kind: PersistentVolumeClaim
+
+---
+# Clone Azure Disk volume
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: azure-cloned-pvc
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: azure-disk-premium
+  resources:
+    requests:
+      storage: 100Gi
+  dataSource:
+    name: azure-premium-claim
+    kind: PersistentVolumeClaim
+
+---
+# Clone GCP PD volume
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gcp-cloned-pvc
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: gcp-pd-balanced
+  resources:
+    requests:
+      storage: 100Gi
+  dataSource:
+    name: gcp-balanced-claim
+    kind: PersistentVolumeClaim
+
+# ============================================================================
+# ADVANCED CONFIGURATIONS
+# ============================================================================
+
+---
+# AWS EBS with custom KMS encryption
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3-encrypted-kms
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  encrypted: "true"
+  kmsKeyId: arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012
+  iops: "3000"
+  throughput: "125"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# Azure Disk with customer-managed encryption
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azure-disk-encrypted
+provisioner: disk.csi.azure.com
+parameters:
+  skuName: Premium_LRS
+  cachingMode: ReadOnly
+  diskEncryptionSetID: /subscriptions/<subscription-id>/resourceGroups/<rg>/providers/Microsoft.Compute/diskEncryptionSets/<des-name>
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# GCP PD with customer-managed encryption
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gcp-pd-encrypted
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-ssd
+  replication-type: none
+  disk-encryption-kms-key: projects/my-project/locations/us-central1/keyRings/my-keyring/cryptoKeys/my-key
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# Multi-zone StorageClass (AWS)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3-multi-zone
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  encrypted: "true"
+allowedTopologies:
+- matchLabelExpressions:
+  - key: topology.ebs.csi.aws.com/zone
+    values:
+    - us-east-1a
+    - us-east-1b
+    - us-east-1c
+    - us-east-1d
+    - us-east-1e
+    - us-east-1f
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# Immediate binding (no topology constraints)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3-immediate
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  encrypted: "true"
+volumeBindingMode: Immediate  # Create volume immediately
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# Retain policy (keep data after PVC deletion)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3-retain
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Retain  # Keep PV after PVC deletion

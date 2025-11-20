@@ -1,0 +1,856 @@
+# Backstage Software Template Examples
+# Production-ready templates for common service patterns
+
+---
+# Template: Node.js Microservice (Complete)
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: nodejs-microservice
+  title: Node.js Microservice
+  description: |
+    Create a production-ready Node.js microservice with TypeScript, testing,
+    CI/CD, Kubernetes deployment, and observability baked in.
+  tags:
+    - recommended
+    - nodejs
+    - typescript
+    - microservice
+    - rest-api
+spec:
+  owner: platform-team
+  type: service
+
+  parameters:
+    # Page 1: Service Information
+    - title: Service Information
+      required:
+        - name
+        - description
+        - owner
+      properties:
+        name:
+          title: Service Name
+          type: string
+          description: Unique name for this service (lowercase, hyphens only)
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
+          ui:autofocus: true
+          ui:help: 'Example: user-service, order-processor, payment-gateway'
+        description:
+          title: Description
+          type: string
+          description: Brief description of what this service does
+          maxLength: 200
+        owner:
+          title: Owner
+          type: string
+          description: Team that owns this service
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+              spec.type: team
+
+    # Page 2: Service Configuration
+    - title: Service Configuration
+      properties:
+        port:
+          title: HTTP Port
+          type: number
+          description: Port the service listens on
+          default: 3000
+          minimum: 1024
+          maximum: 65535
+        database:
+          title: Database
+          type: string
+          description: Does this service need a database?
+          default: postgres
+          enum:
+            - postgres
+            - mysql
+            - mongodb
+            - none
+          enumNames:
+            - PostgreSQL
+            - MySQL
+            - MongoDB
+            - No Database
+        databaseSize:
+          title: Database Size
+          type: string
+          description: Database instance size
+          default: small
+          enum:
+            - small
+            - medium
+            - large
+          enumNames:
+            - 'Small (dev/staging)'
+            - 'Medium (most production services)'
+            - 'Large (high traffic)'
+          ui:visible:
+            - database: ['postgres', 'mysql', 'mongodb']
+        cache:
+          title: Redis Cache
+          type: boolean
+          description: Include Redis for caching?
+          default: false
+        queue:
+          title: Message Queue
+          type: boolean
+          description: Include SQS/Kafka for async processing?
+          default: false
+        queueType:
+          title: Queue Type
+          type: string
+          enum:
+            - sqs
+            - kafka
+          enumNames:
+            - 'AWS SQS (simpler)'
+            - 'Apache Kafka (higher throughput)'
+          default: sqs
+          ui:visible:
+            queue: true
+
+    # Page 3: Deployment Configuration
+    - title: Deployment Configuration
+      properties:
+        environments:
+          title: Environments
+          type: array
+          description: Which environments should be created?
+          items:
+            type: string
+            enum:
+              - dev
+              - staging
+              - production
+          default:
+            - dev
+            - staging
+            - production
+          uniqueItems: true
+        previewEnvironments:
+          title: Preview Environments
+          type: boolean
+          description: Enable preview environments for pull requests?
+          default: true
+        autoDeployDev:
+          title: Auto-deploy to Dev
+          type: boolean
+          description: Automatically deploy to dev on push to main?
+          default: true
+        replicas:
+          title: Production Replicas
+          type: number
+          description: Number of replicas in production
+          default: 3
+          minimum: 1
+          maximum: 20
+
+    # Page 4: Observability
+    - title: Observability & Monitoring
+      properties:
+        metrics:
+          title: Metrics
+          type: boolean
+          description: Include Prometheus metrics endpoint?
+          default: true
+        tracing:
+          title: Distributed Tracing
+          type: boolean
+          description: Include OpenTelemetry instrumentation?
+          default: true
+        logging:
+          title: Structured Logging
+          type: boolean
+          description: Include structured JSON logging?
+          default: true
+        alerts:
+          title: Default Alerts
+          type: array
+          description: Which alerts should be configured?
+          items:
+            type: string
+            enum:
+              - high-error-rate
+              - high-latency
+              - pod-restarts
+              - memory-usage
+              - cpu-usage
+          default:
+            - high-error-rate
+            - high-latency
+            - pod-restarts
+          uniqueItems: true
+
+    # Page 5: Repository
+    - title: Repository Configuration
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+            allowedOwners:
+              - company
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
+        repoVisibility:
+          title: Repository Visibility
+          type: string
+          enum:
+            - internal
+            - private
+          default: internal
+
+  steps:
+    # Step 1: Fetch base template
+    - id: fetch-base
+      name: Fetch Base Template
+      action: fetch:template
+      input:
+        url: ./templates/nodejs-microservice
+        copyWithoutTemplating:
+          - .github/workflows/*.yml
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          port: ${{ parameters.port }}
+          database: ${{ parameters.database }}
+          databaseSize: ${{ parameters.databaseSize }}
+          cache: ${{ parameters.cache }}
+          queue: ${{ parameters.queue }}
+          queueType: ${{ parameters.queueType }}
+          environments: ${{ parameters.environments }}
+          previewEnvironments: ${{ parameters.previewEnvironments }}
+          autoDeployDev: ${{ parameters.autoDeployDev }}
+          replicas: ${{ parameters.replicas }}
+          metrics: ${{ parameters.metrics }}
+          tracing: ${{ parameters.tracing }}
+          logging: ${{ parameters.logging }}
+          alerts: ${{ parameters.alerts }}
+          repoUrl: ${{ parameters.repoUrl }}
+          orgName: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+          repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
+          currentYear: ${{ (now | date('YYYY')) }}
+
+    # Step 2: Publish to GitHub
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        allowedHosts:
+          - github.com
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        repoVisibility: ${{ parameters.repoVisibility }}
+        defaultBranch: main
+        protectDefaultBranch: true
+        deleteBranchOnMerge: true
+        gitAuthorName: Backstage
+        gitAuthorEmail: backstage@company.com
+        secrets:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    # Step 3: Create GitHub teams and access
+    - id: github-teams
+      name: Configure GitHub Access
+      action: github:teams:assign
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        teams:
+          - team: ${{ parameters.owner }}
+            permission: admin
+
+    # Step 4: Provision database (conditional)
+    - id: create-database
+      if: ${{ parameters.database !== 'none' }}
+      name: Provision Database
+      action: platform:database:create
+      input:
+        name: ${{ parameters.name }}-db
+        type: ${{ parameters.database }}
+        size: ${{ parameters.databaseSize }}
+        owner: ${{ parameters.owner }}
+        environments: ${{ parameters.environments }}
+
+    # Step 5: Provision cache (conditional)
+    - id: create-cache
+      if: ${{ parameters.cache }}
+      name: Provision Redis Cache
+      action: platform:cache:create
+      input:
+        name: ${{ parameters.name }}-cache
+        type: redis
+        owner: ${{ parameters.owner }}
+        environments: ${{ parameters.environments }}
+
+    # Step 6: Provision queue (conditional)
+    - id: create-queue
+      if: ${{ parameters.queue }}
+      name: Provision Message Queue
+      action: platform:queue:create
+      input:
+        name: ${{ parameters.name }}-queue
+        type: ${{ parameters.queueType }}
+        owner: ${{ parameters.owner }}
+        environments: ${{ parameters.environments }}
+
+    # Step 7: Create Kubernetes namespaces
+    - id: create-namespaces
+      name: Create Kubernetes Namespaces
+      action: kubernetes:apply
+      input:
+        manifestString: |
+          ${{ parameters.environments | map(env => `
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: ${parameters.name}-${env}
+            labels:
+              environment: ${env}
+              service: ${parameters.name}
+              owner: ${parameters.owner}
+              managed-by: backstage
+          `) | join('---\n') }}
+
+    # Step 8: Create secrets
+    - id: create-secrets
+      name: Create Secrets
+      action: platform:secrets:create
+      input:
+        service: ${{ parameters.name }}
+        owner: ${{ parameters.owner }}
+        secrets:
+          - name: app-secrets
+            type: generic
+          ${{ parameters.database !== 'none' && {
+            name: 'database-credentials',
+            type: 'database',
+            reference: steps['create-database'].output.secretName
+          } }}
+          ${{ parameters.cache && {
+            name: 'cache-credentials',
+            type: 'cache',
+            reference: steps['create-cache'].output.secretName
+          } }}
+          ${{ parameters.queue && {
+            name: 'queue-credentials',
+            type: 'queue',
+            reference: steps['create-queue'].output.secretName
+          } }}
+
+    # Step 9: Setup CI/CD
+    - id: create-cicd
+      name: Setup CI/CD Pipeline
+      action: github:actions:dispatch
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        workflowId: setup.yml
+        branchOrTagName: main
+
+    # Step 10: Create ArgoCD applications
+    - id: create-argocd-apps
+      name: Create ArgoCD Applications
+      action: argocd:create-app
+      input:
+        ${{ parameters.environments | map(env => {
+          appName: `${parameters.name}-${env}`,
+          repoUrl: parameters.repoUrl,
+          path: `k8s/overlays/${env}`,
+          namespace: `${parameters.name}-${env}`,
+          project: parameters.owner,
+          syncPolicy: env === 'dev' && parameters.autoDeployDev ? 'automated' : 'manual'
+        }) }}
+
+    # Step 11: Create preview environment ApplicationSet (conditional)
+    - id: create-preview-appset
+      if: ${{ parameters.previewEnvironments }}
+      name: Create Preview Environment ApplicationSet
+      action: argocd:create-applicationset
+      input:
+        name: ${{ parameters.name }}-preview
+        repoUrl: ${{ parameters.repoUrl }}
+        generator: pullRequest
+
+    # Step 12: Setup monitoring dashboards
+    - id: create-dashboards
+      if: ${{ parameters.metrics }}
+      name: Create Grafana Dashboards
+      action: grafana:create-dashboard
+      input:
+        service: ${{ parameters.name }}
+        owner: ${{ parameters.owner }}
+        dashboards:
+          - type: service-overview
+          - type: database
+            enabled: ${{ parameters.database !== 'none' }}
+
+    # Step 13: Setup alerts
+    - id: create-alerts
+      name: Configure Alerts
+      action: prometheus:create-rules
+      input:
+        service: ${{ parameters.name }}
+        owner: ${{ parameters.owner }}
+        alerts: ${{ parameters.alerts }}
+        pagerdutyKey: ${{ secrets.PAGERDUTY_INTEGRATION_KEY }}
+
+    # Step 14: Register in catalog
+    - id: register
+      name: Register Component in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+    # Step 15: Send notification
+    - id: notify
+      name: Send Notification
+      action: slack:send
+      input:
+        channel: ${{ parameters.owner }}
+        message: |
+          🚀 New service created: *${{ parameters.name }}*
+
+          Repository: ${{ steps.publish.output.remoteUrl }}
+          Owner: ${{ parameters.owner }}
+
+          Next steps:
+          1. Clone the repository
+          2. Review the README
+          3. Start developing!
+
+  output:
+    links:
+      - title: View Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+        icon: github
+      - title: View in Catalog
+        url: /catalog/default/component/${{ parameters.name }}
+        icon: catalog
+      - title: View CI/CD Pipeline
+        url: ${{ steps.publish.output.remoteUrl }}/actions
+        icon: github
+      - title: ArgoCD Applications
+        url: https://argocd.company.com/applications?search=${{ parameters.name }}
+        icon: argocd
+      - title: Grafana Dashboard
+        url: https://grafana.company.com/d/${{ parameters.name }}
+        icon: dashboard
+      - title: Open in Editor
+        url: vscode://file/${{ steps.publish.output.repoContentsUrl }}
+        icon: code
+    text:
+      - title: Database Credentials
+        content: ${{ parameters.database !== 'none' && steps['create-database'].output.secretName || 'No database provisioned' }}
+      - title: Getting Started
+        content: |
+          ## Next Steps
+
+          1. **Clone the repository**:
+             ```bash
+             git clone ${{ steps.publish.output.cloneUrl }}
+             cd ${{ parameters.name }}
+             ```
+
+          2. **Install dependencies**:
+             ```bash
+             npm install
+             ```
+
+          3. **Start local development**:
+             ```bash
+             docker-compose up -d  # Start dependencies
+             npm run dev           # Start service
+             ```
+
+          4. **Run tests**:
+             ```bash
+             npm test
+             ```
+
+          5. **Deploy to dev**:
+             ```bash
+             git commit -am "Initial commit"
+             git push
+             # Automatically deploys to dev environment
+             ```
+
+          ## Resources
+
+          - [Service Documentation](https://backstage.company.com/docs/default/component/${{ parameters.name }})
+          - [Runbooks](https://backstage.company.com/docs/default/component/${{ parameters.name }}/runbooks)
+          - [API Documentation](https://backstage.company.com/docs/default/component/${{ parameters.name }}/api)
+
+---
+# Template: Python FastAPI Service
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: python-fastapi-service
+  title: Python FastAPI Service
+  description: |
+    Create a production-ready Python service using FastAPI framework
+  tags:
+    - recommended
+    - python
+    - fastapi
+    - api
+spec:
+  owner: platform-team
+  type: service
+
+  parameters:
+    - title: Service Information
+      required:
+        - name
+        - description
+        - owner
+      properties:
+        name:
+          title: Service Name
+          type: string
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
+        description:
+          title: Description
+          type: string
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+
+    - title: Configuration
+      properties:
+        pythonVersion:
+          title: Python Version
+          type: string
+          enum:
+            - '3.11'
+            - '3.12'
+          default: '3.11'
+        database:
+          title: Database
+          type: string
+          enum:
+            - postgres
+            - none
+          default: postgres
+        async:
+          title: Async Database Access
+          type: boolean
+          description: Use async SQLAlchemy?
+          default: true
+
+    - title: Repository
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+
+  steps:
+    - id: fetch-base
+      name: Fetch Template
+      action: fetch:template
+      input:
+        url: ./templates/python-fastapi-service
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          pythonVersion: ${{ parameters.pythonVersion }}
+          database: ${{ parameters.database }}
+          async: ${{ parameters.async }}
+
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        description: ${{ parameters.description }}
+
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Catalog
+        url: /catalog/default/component/${{ parameters.name }}
+
+---
+# Template: React Application
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: react-application
+  title: React Application
+  description: |
+    Create a modern React application with TypeScript, Vite, and Tailwind CSS
+  tags:
+    - recommended
+    - react
+    - typescript
+    - frontend
+spec:
+  owner: platform-team
+  type: website
+
+  parameters:
+    - title: Application Information
+      required:
+        - name
+        - description
+        - owner
+      properties:
+        name:
+          title: Application Name
+          type: string
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
+        description:
+          title: Description
+          type: string
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+
+    - title: Configuration
+      properties:
+        styling:
+          title: Styling Framework
+          type: string
+          enum:
+            - tailwind
+            - material-ui
+            - styled-components
+          enumNames:
+            - Tailwind CSS
+            - Material-UI
+            - Styled Components
+          default: tailwind
+        stateManagement:
+          title: State Management
+          type: string
+          enum:
+            - redux
+            - zustand
+            - recoil
+            - none
+          enumNames:
+            - Redux Toolkit
+            - Zustand
+            - Recoil
+            - Context API only
+          default: zustand
+        routing:
+          title: Routing
+          type: boolean
+          description: Include React Router?
+          default: true
+
+    - title: Deployment
+      properties:
+        hosting:
+          title: Hosting Platform
+          type: string
+          enum:
+            - vercel
+            - cloudflare-pages
+            - kubernetes
+          enumNames:
+            - Vercel (recommended)
+            - Cloudflare Pages
+            - Kubernetes (self-hosted)
+          default: vercel
+
+    - title: Repository
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+
+  steps:
+    - id: fetch-base
+      name: Fetch Template
+      action: fetch:template
+      input:
+        url: ./templates/react-application
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          styling: ${{ parameters.styling }}
+          stateManagement: ${{ parameters.stateManagement }}
+          routing: ${{ parameters.routing }}
+          hosting: ${{ parameters.hosting }}
+
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+
+    - id: setup-hosting
+      if: ${{ parameters.hosting === 'vercel' }}
+      name: Setup Vercel Deployment
+      action: vercel:project:create
+      input:
+        name: ${{ parameters.name }}
+        repoUrl: ${{ parameters.repoUrl }}
+
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Preview (Vercel)
+        url: ${{ steps['setup-hosting'].output.previewUrl }}
+        if: ${{ parameters.hosting === 'vercel' }}
+
+---
+# Template: Database Provisioning (Standalone)
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: database-provisioning
+  title: Provision Database
+  description: |
+    Request a new database instance with production-ready configuration
+  tags:
+    - database
+    - infrastructure
+spec:
+  owner: platform-team
+  type: resource
+
+  parameters:
+    - title: Database Information
+      required:
+        - name
+        - type
+        - owner
+      properties:
+        name:
+          title: Database Name
+          type: string
+          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
+        type:
+          title: Database Type
+          type: string
+          enum:
+            - postgres
+            - mysql
+            - mongodb
+          enumNames:
+            - PostgreSQL 15
+            - MySQL 8.0
+            - MongoDB 6.0
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+
+    - title: Configuration
+      properties:
+        environment:
+          title: Environment
+          type: string
+          enum:
+            - development
+            - staging
+            - production
+          default: development
+        size:
+          title: Instance Size
+          type: string
+          enum:
+            - small
+            - medium
+            - large
+          enumNames:
+            - 'Small (~$20/mo) - Dev/Testing'
+            - 'Medium (~$100/mo) - Production'
+            - 'Large (~$400/mo) - High Traffic'
+          default: small
+        backup:
+          title: Automated Backups
+          type: boolean
+          default: true
+        highAvailability:
+          title: High Availability
+          type: boolean
+          description: Enable multi-AZ deployment?
+          default: false
+
+  steps:
+    - id: provision-database
+      name: Provision Database
+      action: platform:database:create
+      input:
+        name: ${{ parameters.name }}
+        type: ${{ parameters.type }}
+        environment: ${{ parameters.environment }}
+        size: ${{ parameters.size }}
+        owner: ${{ parameters.owner }}
+        backup: ${{ parameters.backup }}
+        highAvailability: ${{ parameters.highAvailability }}
+
+    - id: create-secrets
+      name: Create Secrets
+      action: platform:secrets:create
+      input:
+        name: ${{ parameters.name }}-credentials
+        type: database
+        reference: ${{ steps['provision-database'].output.secretName }}
+
+    - id: register
+      name: Register Resource in Catalog
+      action: catalog:register
+      input:
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    text:
+      - title: Connection Information
+        content: |
+          Your database has been provisioned!
+
+          **Secret Name**: `${{ steps['provision-database'].output.secretName }}`
+          **Endpoint**: `${{ steps['provision-database'].output.endpoint }}`
+
+          Use in your application:
+          ```yaml
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ${{ steps['provision-database'].output.secretName }}
+                  key: connection-string
+          ```
