@@ -6,8 +6,8 @@
     "url": "https://github.com/lazarenkod"
   },
   "metadata": {
-    "description": "Production-ready workflow orchestration with 65 focused plugins, 89 specialized agents, 46 tools, and 54 agent skills - optimized for granular installation and minimal token usage",
-    "version": "1.4.0"
+    "description": "Production-ready workflow orchestration with 85 focused plugins, 89 specialized agents, 46 tools, and 54 agent skills - optimized for granular installation and minimal token usage",
+    "version": "1.5.0"
   },
   "plugins": [
     {
@@ -3120,6 +3120,62 @@
         "./skills/fact-checking-methodology",
         "./skills/editorial-excellence",
         "./skills/media-publishing-guidelines"
+      ]
+    },
+    {
+      "name": "fstec-security-analysis",
+      "source": "./plugins/fstec-security-analysis",
+      "description": "Comprehensive FSTEC (Federal Service for Technical and Export Control of Russia) security compliance analysis system for containerization platforms. Provides professional security assessment of Docker, Kubernetes, Podman against FSTEC Order No. 118 (04.07.2022) requirements. Complete workflow: (1) Automated security analysis → (2) Container image scanning → (3) Configuration assessment → (4) Risk evaluation → (5) Compliance documentation generation. Features 4 specialized agents: fstec-security-expert (comprehensive FSTEC compliance analysis), container-security-analyst (technical security analysis for Docker/Kubernetes/Podman), compliance-auditor (official audit documentation), risk-assessor (information security risk assessment). Two commands: analyze-container-security (full compliance analysis), generate-compliance-report (professional report generation). Two comprehensive skills: fstec-container-requirements (detailed FSTEC requirements knowledge base), security-analysis-methodology (7-phase security analysis methodology). Supports all protection levels (УЗ-1, УЗ-2, УЗ-3, УЗ-4). All outputs in Russian markdown format suitable for certification and regulatory compliance.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "fstec",
+        "security-compliance",
+        "containerization-security",
+        "kubernetes-security",
+        "docker-security",
+        "podman-security",
+        "security-audit",
+        "compliance-analysis",
+        "risk-assessment",
+        "security-documentation",
+        "russian-compliance",
+        "regulatory-compliance",
+        "information-security",
+        "container-scanning",
+        "vulnerability-assessment",
+        "rbac-analysis",
+        "network-policies",
+        "security-context",
+        "audit-logging",
+        "threat-modeling",
+        "security-certification",
+        "compliance-reporting",
+        "security-best-practices",
+        "uz-1",
+        "uz-2",
+        "uz-3",
+        "uz-4"
+      ],
+      "commands": [
+        "./commands/analyze-container-security.md",
+        "./commands/generate-compliance-report.md"
+      ],
+      "agents": [
+        "./agents/fstec-security-expert.md",
+        "./agents/container-security-analyst.md",
+        "./agents/compliance-auditor.md",
+        "./agents/risk-assessor.md"
+      ],
+      "skills": [
+        "./skills/fstec-container-requirements",
+        "./skills/security-analysis-methodology"
       ]
     }
   ]

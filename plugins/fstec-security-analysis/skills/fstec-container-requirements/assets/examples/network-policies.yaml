@@ -1,0 +1,516 @@
+# Примеры Network Policies для соответствия ФСТЭК (УД.5)
+
+# Требование УД.5: Контроль сетевого взаимодействия между контейнерами
+
+---
+# Пример 1: Default Deny All (базовая защита для всех уровней УЗ)
+# Блокирует весь ingress и egress трафик по умолчанию
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: production
+  annotations:
+    security.fstec/requirement: "УД.5"
+    security.fstec/description: "Запрет всего трафика по умолчанию"
+spec:
+  podSelector: {}  # Применяется ко всем подам в namespace
+  policyTypes:
+  - Ingress
+  - Egress
+  # Отсутствие правил ingress/egress = полный запрет
+
+---
+# Пример 2: Разрешение только необходимого трафика для веб-приложения
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-app-network-policy
+  namespace: production
+  annotations:
+    security.fstec/requirement: "УД.5"
+    security.fstec/approved-by: "Security Team"
+    security.fstec/approved-date: "2025-11-20"
+spec:
+  podSelector:
+    matchLabels:
+      app: web-app
+      tier: frontend
+
+  policyTypes:
+  - Ingress
+  - Egress
+
+  # Входящий трафик
+  ingress:
+  # Разрешить трафик только от load balancer
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          app: nginx-ingress
+    ports:
+    - protocol: TCP
+      port: 8080
+
+  # Исходящий трафик
+  egress:
+  # 1. Разрешить обращение к backend API
+  - to:
+    - podSelector:
+        matchLabels:
+          app: api-backend
+          tier: backend
+    ports:
+    - protocol: TCP
+      port: 8000
+
+  # 2. Разрешить обращение к базе данных
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgresql
+          tier: database
+    ports:
+    - protocol: TCP
+      port: 5432
+
+  # 3. Разрешить DNS запросы (критично!)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    - podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Пример 3: Строгая изоляция для критичных данных (УЗ-1, УЗ-2)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: classified-data-isolation
+  namespace: classified
+  annotations:
+    security.fstec/requirement: "УД.5, УД.2"
+    security.fstec/classification: "особой важности"
+    security.fstec/uz-level: "УЗ-1"
+spec:
+  podSelector:
+    matchLabels:
+      security-level: classified
+      data-classification: top-secret
+
+  policyTypes:
+  - Ingress
+  - Egress
+
+  ingress:
+  # Разрешить ТОЛЬКО от подов с таким же уровнем классификации
+  - from:
+    - podSelector:
+        matchLabels:
+          security-level: classified
+          clearance: top-secret
+    ports:
+    - protocol: TCP
+      port: 8443  # Только HTTPS
+
+  egress:
+  # Разрешить ТОЛЬКО к подам в том же security zone
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          security-zone: classified
+    - podSelector:
+        matchLabels:
+          security-level: classified
+
+  # DNS (обязательно)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Пример 4: Микросегментация трех-tier приложения
+# Frontend → Backend → Database
+
+# 4.1. Frontend Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-netpol
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      tier: frontend
+
+  policyTypes:
+  - Ingress
+  - Egress
+
+  ingress:
+  # Входящий трафик от ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
+
+  egress:
+  # Только к backend, НЕ напрямую к БД
+  - to:
+    - podSelector:
+        matchLabels:
+          tier: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# 4.2. Backend Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-netpol
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      tier: backend
+
+  policyTypes:
+  - Ingress
+  - Egress
+
+  ingress:
+  # Входящий трафик ТОЛЬКО от frontend
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: frontend
+    ports:
+    - protocol: TCP
+      port: 8080
+
+  egress:
+  # Только к database
+  - to:
+    - podSelector:
+        matchLabels:
+          tier: database
+    ports:
+    - protocol: TCP
+      port: 5432
+
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+  # Внешние API (если нужны)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+    # Можно дополнительно ограничить по CIDR:
+    # to:
+    # - ipBlock:
+    #     cidr: 10.0.0.0/8  # Только internal network
+
+---
+# 4.3. Database Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-netpol
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      tier: database
+
+  policyTypes:
+  - Ingress
+  - Egress
+
+  ingress:
+  # Входящий трафик ТОЛЬКО от backend
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: backend
+    ports:
+    - protocol: TCP
+      port: 5432
+
+  egress:
+  # База данных НЕ должна инициировать исходящие соединения
+  # Разрешить ТОЛЬКО DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Пример 5: Изоляция namespaces (межпроектная изоляция)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-other-namespaces
+  namespace: team-a
+spec:
+  podSelector: {}  # Все поды в namespace
+
+  policyTypes:
+  - Ingress
+  - Egress
+
+  ingress:
+  # Разрешить ТОЛЬКО от подов в том же namespace
+  - from:
+    - podSelector: {}
+
+  egress:
+  # Разрешить ТОЛЬКО к подам в том же namespace
+  - to:
+    - podSelector: {}
+
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Пример 6: Разрешение трафика по IP CIDR (внешние системы)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-external-api
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: integration-service
+
+  policyTypes:
+  - Egress
+
+  egress:
+  # Разрешить доступ к конкретному внешнему API
+  - to:
+    - ipBlock:
+        cidr: 203.0.113.0/24  # External API CIDR
+        except:
+        - 203.0.113.5/32      # Исключить конкретный IP
+    ports:
+    - protocol: TCP
+      port: 443
+
+  # Запретить доступ к приватным сетям
+  # (по умолчанию запрещено, но явно указать для ясности)
+  # НЕ добавлять правила для:
+  # - 10.0.0.0/8
+  # - 172.16.0.0/12
+  # - 192.168.0.0/16
+
+---
+# Пример 7: Monitoring и Logging исключения
+# Prometheus и FluentBit должны иметь доступ для сбора метрик/логов
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring
+  namespace: production
+spec:
+  podSelector: {}  # Все поды
+
+  policyTypes:
+  - Ingress
+
+  ingress:
+  # Разрешить Prometheus scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090  # Metrics port
+
+  # Разрешить FluentBit для логов (если используется daemonset)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: logging
+    - podSelector:
+        matchLabels:
+          app: fluent-bit
+
+---
+# Пример 8: Service Mesh integration (Istio/Linkerd)
+# При использовании service mesh некоторые порты должны быть открыты
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-service-mesh
+  namespace: production
+spec:
+  podSelector: {}
+
+  policyTypes:
+  - Ingress
+  - Egress
+
+  ingress:
+  # Разрешить Envoy sidecar intercept
+  - from:
+    - podSelector: {}  # От других подов в namespace
+    ports:
+    - protocol: TCP
+      port: 15001  # Envoy inbound
+    - protocol: TCP
+      port: 15006  # Envoy inbound (HTTP)
+
+  egress:
+  # Разрешить Envoy sidecar egress
+  - to:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 15001
+
+  # Control plane communication
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    ports:
+    - protocol: TCP
+      port: 15012  # XDS
+
+---
+# Пример 9: Временное правило для debugging (НЕ для продакшена!)
+# Использовать ТОЛЬКО для troubleshooting, затем удалить!
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: debug-allow-all
+  namespace: development
+  annotations:
+    security.fstec/temporary: "true"
+    security.fstec/expires: "2025-11-30"
+    security.fstec/approved-by: "DevOps Team"
+    security.fstec/reason: "Debugging network connectivity issues"
+spec:
+  podSelector:
+    matchLabels:
+      debug: "true"  # Только для подов с этим label
+
+  policyTypes:
+  - Ingress
+  - Egress
+
+  ingress:
+  - {}  # Разрешить весь ingress
+
+  egress:
+  - {}  # Разрешить весь egress
+
+---
+# Пример 10: Deny egress to metadata service (защита от SSRF)
+# Блокировать доступ к cloud metadata endpoints
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-metadata-service
+  namespace: production
+  annotations:
+    security.fstec/requirement: "ЗТС.1"
+    security.fstec/description: "Защита от SSRF атак на metadata service"
+spec:
+  podSelector: {}
+
+  policyTypes:
+  - Egress
+
+  egress:
+  # Явно запретить доступ к metadata endpoints
+  # AWS metadata
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32
+        - 169.254.0.0/16  # Link-local
+
+  # GCP metadata
+  # - metadata.google.internal блокируется через DNS policy
+
+  # Azure metadata (168.63.129.16) аналогично
+
+---
+# Чек-лист Network Policies для ФСТЭК:
+
+# ✅ УД.5 - Контроль сетевого взаимодействия
+# 1. [x] Default deny политика для всех namespaces
+# 2. [x] Явное разрешение только необходимого трафика
+# 3. [x] Микросегментация (tier isolation)
+# 4. [x] Namespace isolation
+# 5. [x] Защита БД (только от backend)
+# 6. [x] DNS разрешен (необходимо для работы)
+# 7. [x] Мониторинг имеет доступ
+# 8. [x] Metadata service заблокирован
+# 9. [x] Документированы все исключения
+# 10. [x] Регулярный аудит правил
+
+# ⚠️ Важные замечания:
+# - Всегда тестировать политики в dev окружении
+# - Использовать labels для идентификации подов
+# - Не забывать про DNS (иначе ничего не работает!)
+# - Документировать все исключения
+# - Регулярно пересматривать правила
+# - Использовать monitoring для обнаружения заблокированного легитимного трафика
+
+# 📝 Валидация NetworkPolicy:
+# kubectl describe networkpolicy <name> -n <namespace>
+# kubectl get networkpolicies --all-namespaces
+# Использовать инструменты: network-policy-viewer, Cilium network policy editor

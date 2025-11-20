@@ -1,0 +1,477 @@
+# Примеры RBAC для соответствия ФСТЭК (УД.1, ИА)
+
+# Требование УД.1: Дискреционное управление доступом
+# Требование ИА.1: Идентификация субъектов доступа
+
+---
+# ПРИМЕР 1: ServiceAccount для приложения (ИА.1)
+# Каждое приложение должно иметь свой ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: web-app-sa
+  namespace: production
+  annotations:
+    security.fstec/requirement: "ИА.1"
+    security.fstec/owner: "Web Team"
+    security.fstec/purpose: "ServiceAccount for web application"
+automountServiceAccountToken: false  # Не монтировать автоматически
+
+---
+# ПРИМЕР 2: Роль с минимальными привилегиями (Least Privilege)
+# Роль для чтения подов и логов
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: production
+  annotations:
+    security.fstec/requirement: "УД.1"
+    security.fstec/principle: "Least Privilege"
+rules:
+# Чтение подов
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+
+# Чтение логов подов
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list"]
+
+# Чтение подов/status (для мониторинга)
+- apiGroups: [""]
+  resources: ["pods/status"]
+  verbs: ["get"]
+
+---
+# ПРИМЕР 3: RoleBinding для назначения роли
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: web-app-pod-reader
+  namespace: production
+  annotations:
+    security.fstec/approved-by: "Security Team"
+    security.fstec/approved-date: "2025-11-20"
+subjects:
+# Назначить ServiceAccount
+- kind: ServiceAccount
+  name: web-app-sa
+  namespace: production
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ПРИМЕР 4: Роль для deployment management
+# Права на управление deployments в своем namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-manager
+  namespace: production
+rules:
+# Управление Deployments
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Управление ReplicaSets (создаются Deployment'ами)
+- apiGroups: ["apps"]
+  resources: ["replicasets"]
+  verbs: ["get", "list", "watch"]
+
+# Чтение Pods (для проверки статуса)
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+
+# Чтение Events
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+
+---
+# ПРИМЕР 5: ClusterRole с ограниченными правами
+# Роль для чтения nodes (cluster-wide, но read-only)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-reader
+  annotations:
+    security.fstec/requirement: "УД.1"
+    security.fstec/scope: "cluster-wide read-only"
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+
+- apiGroups: [""]
+  resources: ["nodes/status"]
+  verbs: ["get"]
+
+# БЕЗ опасных permissions:
+# ❌ НЕТ: verbs: ["*"]
+# ❌ НЕТ: resources: ["*"]
+# ❌ НЕТ: verbs: ["create", "delete", "update"]
+
+---
+# ПРИМЕР 6: Monitoring роль
+# Специальная роль для Prometheus/Grafana
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: monitoring-reader
+  annotations:
+    security.fstec/purpose: "Metrics collection"
+rules:
+# Чтение метрик из pods
+- apiGroups: [""]
+  resources: ["nodes", "nodes/metrics", "nodes/stats", "nodes/proxy"]
+  verbs: ["get", "list"]
+
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+
+# Чтение метрик
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list"]
+
+# БЕЗ write permissions
+# БЕЗ доступа к secrets
+
+---
+# ПРИМЕР 7: CI/CD ServiceAccount (ограниченный)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cicd-deployer
+  namespace: production
+
+---
+# Роль для CI/CD: только deploy и rollback
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cicd-deployer-role
+  namespace: production
+rules:
+# Управление Deployments (для deploy)
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "create", "update", "patch"]
+
+# Управление ConfigMaps (для конфигурации)
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "create", "update", "patch"]
+
+# Чтение Secrets (НЕ create/delete!)
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+
+# Управление Services
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list", "create", "update", "patch"]
+
+# Чтение статуса
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+
+# БЕЗ:
+# ❌ НЕТ delete на deployments (предотвращает случайное удаление)
+# ❌ НЕТ доступа к RBAC ресурсам
+# ❌ НЕТ доступа к nodes
+# ❌ НЕТ exec в pods
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cicd-deployer-binding
+  namespace: production
+subjects:
+- kind: ServiceAccount
+  name: cicd-deployer
+  namespace: production
+roleRef:
+  kind: Role
+  name: cicd-deployer-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ПРИМЕР 8: Developer роль (view + logs)
+# Разработчики могут смотреть, но не изменять
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer-view
+  namespace: development
+  annotations:
+    security.fstec/requirement: "УД.1"
+    security.fstec/principle: "Read-only for developers"
+rules:
+# Чтение всех ресурсов
+- apiGroups: ["", "apps", "batch"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+
+# Чтение логов
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list"]
+
+# Чтение ConfigMaps
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+
+# БЕЗ:
+# ❌ НЕТ write permissions
+# ❌ НЕТ доступа к secrets (конфиденциально)
+# ❌ НЕТ exec в pods
+# ❌ НЕТ port-forward
+
+---
+# ПРИМЕР 9: Security Auditor роль
+# Аудитор безопасности: read-only доступ ко всему, включая secrets metadata
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: security-auditor
+  annotations:
+    security.fstec/requirement: "РУ.3"
+    security.fstec/purpose: "Security audit and compliance"
+rules:
+# Чтение всех ресурсов
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+
+# Чтение логов аудита
+- apiGroups: ["audit.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list"]
+
+# ВАЖНО: Даже для secrets только metadata, не data!
+# Реализуется через custom admission webhook или OPA policy
+
+# БЕЗ write permissions полностью
+
+---
+# ПРИМЕР 10: Namespace Admin (ограниченный namespace scope)
+# Администратор namespace, но БЕЗ cluster-wide прав
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: namespace-admin
+  namespace: team-a
+rules:
+# Полные права в namespace
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+
+# НО: это Role, не ClusterRole
+# Ограничено ТОЛЬКО namespace team-a
+# НЕ может влиять на другие namespaces или cluster resources
+
+---
+# ПРИМЕР 11: Запрет опасных операций
+# Что НЕ должно быть в production:
+
+# ❌ ПЛОХО: Wildcard permissions
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRole
+# metadata:
+#   name: bad-wildcard-role
+# rules:
+# - apiGroups: ["*"]      # ❌ Слишком широко
+#   resources: ["*"]      # ❌ Слишком широко
+#   verbs: ["*"]          # ❌ Слишком опасно
+
+# ❌ ПЛОХО: cluster-admin для приложений
+# subjects:
+# - kind: ServiceAccount
+#   name: my-app
+#   namespace: production
+# roleRef:
+#   kind: ClusterRole
+#   name: cluster-admin   # ❌ Слишком много прав!
+
+# ❌ ПЛОХО: Доступ к exec без ограничений
+# rules:
+# - apiGroups: [""]
+#   resources: ["pods/exec"]
+#   verbs: ["create"]     # ❌ Позволяет выполнять команды в любом поде!
+
+---
+# ПРИМЕР 12: Разделение обязанностей (Separation of Duties)
+# Разные роли для разных задач
+
+# Роль 1: Создание Deployments
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-creator
+  namespace: production
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["create", "get", "list"]
+
+---
+# Роль 2: Обновление Deployments (отдельно!)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-updater
+  namespace: production
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["update", "patch", "get", "list"]
+
+---
+# Роль 3: Удаление Deployments (требует дополнительного одобрения)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-deleter
+  namespace: production
+  annotations:
+    security.fstec/requires-approval: "true"
+    security.fstec/approvers: "team-lead,security-team"
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["delete", "get", "list"]
+
+---
+# ПРИМЕР 13: Временная роль (с истечением срока)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: temp-debug-access
+  namespace: production
+  annotations:
+    security.fstec/temporary: "true"
+    security.fstec/expires: "2025-11-30T23:59:59Z"
+    security.fstec/approved-by: "Security Manager"
+    security.fstec/reason: "Debugging production incident #123"
+    security.fstec/revoke-after-use: "true"
+subjects:
+- kind: User
+  name: john.doe@example.com
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+
+# Должно быть автоматически удалено после expires date
+# Использовать CronJob или operator для автоматической очистки
+
+---
+# ПРИМЕР 14: Группы пользователей (для УЗ-1, УЗ-2)
+# Роль для группы "Security Clearance: Top Secret"
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: classified-data-access
+  namespace: classified
+  annotations:
+    security.fstec/requirement: "УД.2"
+    security.fstec/classification: "совершенно секретно"
+subjects:
+- kind: Group
+  name: clearance-top-secret
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: classified-data-reader
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ПРИМЕР 15: Aggregated ClusterRoles
+# Композиция ролей из нескольких ClusterRoles
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: monitoring-aggregate
+  labels:
+    rbac.example.com/aggregate-to-monitoring: "true"
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.example.com/aggregate-to-monitoring: "true"
+rules: []  # Rules are automatically filled from aggregated roles
+
+---
+# Компонент 1: Metrics reading
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: monitoring-metrics
+  labels:
+    rbac.example.com/aggregate-to-monitoring: "true"
+rules:
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list"]
+
+---
+# Компонент 2: Pod reading
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: monitoring-pods
+  labels:
+    rbac.example.com/aggregate-to-monitoring: "true"
+rules:
+- apiGroups: [""]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list", "watch"]
+
+---
+# Чек-лист RBAC для ФСТЭК:
+
+# ✅ ИА.1 - Идентификация
+# 1. [x] Каждое приложение имеет свой ServiceAccount
+# 2. [x] automountServiceAccountToken: false где не нужен
+# 3. [x] Документированы все ServiceAccounts
+
+# ✅ УД.1 - Управление доступом
+# 1. [x] Применен принцип наименьших привилегий
+# 2. [x] Отсутствуют wildcard permissions в production
+# 3. [x] Нет использования cluster-admin для приложений
+# 4. [x] Разделение обязанностей (read/write/delete)
+# 5. [x] Роли документированы и обоснованы
+# 6. [x] Регулярный аудит RBAC
+
+# ⚠️ Опасные patterns (избегать):
+# - verbs: ["*"]
+# - resources: ["*"]
+# - apiGroups: ["*"]
+# - roleRef.name: cluster-admin
+# - resources: ["secrets"] с verbs: ["*"]
+# - resources: ["pods/exec"] без ограничений
+
+# 📝 Аудит RBAC:
+# kubectl get clusterrolebindings -o wide
+# kubectl get rolebindings --all-namespaces -o wide
+# kubectl auth can-i --list --as=system:serviceaccount:production:web-app-sa
+# Использовать rbac-lookup, rbac-police, rback
+
+# 🔒 Для УЗ-1 и УЗ-2:
+# - Обязательная ролевая модель (группы по уровню допуска)
+# - Аудит всех изменений RBAC
+# - Многофакторная аутентификация для админов
+# - Временные роли с автоматическим отзывом
