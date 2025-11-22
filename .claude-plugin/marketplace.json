@@ -3226,6 +3226,64 @@
         "./skills/mlops-practices",
         "./skills/incident-management"
       ]
+    },
+    {
+      "name": "technical-support-director",
+      "source": "./plugins/technical-support-director",
+      "description": "Technical Support Director для облачных провайдеров (AWS, Azure, GCP, Oracle level). Управление инцидентами, SLA compliance, team performance, vendor escalations, customer success, crisis communication. Полный набор для senior leadership в технической поддержке.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "technical-support",
+        "support-director",
+        "incident-management",
+        "sla-management",
+        "customer-success",
+        "cloud-support",
+        "aws-support",
+        "azure-support",
+        "gcp-support",
+        "vendor-escalation",
+        "crisis-communication",
+        "team-management",
+        "performance-analytics",
+        "knowledge-base",
+        "escalation-management"
+      ],
+      "category": "support-leadership",
+      "strict": false,
+      "commands": [
+        "./commands/incident-report.md",
+        "./commands/sla-dashboard.md",
+        "./commands/team-metrics.md",
+        "./commands/escalation-workflow.md"
+      ],
+      "agents": [
+        "./agents/support-director.md",
+        "./agents/incident-commander.md",
+        "./agents/sla-compliance-manager.md",
+        "./agents/team-performance-analyst.md",
+        "./agents/knowledge-base-curator.md",
+        "./agents/escalation-coordinator.md"
+      ],
+      "skills": [
+        "./skills/incident-management",
+        "./skills/sla-management",
+        "./skills/crisis-communication",
+        "./skills/root-cause-analysis",
+        "./skills/vendor-escalation",
+        "./skills/customer-success",
+        "./skills/capacity-planning",
+        "./skills/knowledge-base-optimization",
+        "./skills/team-coaching",
+        "./skills/executive-communication"
+      ]
     }
   ]
 }
