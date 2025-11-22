@@ -3177,6 +3177,55 @@
         "./skills/fstec-container-requirements",
         "./skills/security-analysis-methodology"
       ]
+    },
+    {
+      "name": "pm-agents",
+      "source": "./plugins/pm-agents",
+      "description": "Senior-level Project Manager, Delivery Manager, and Technical Project Manager agents with comprehensive skills for complex technical projects. Includes strategic planning, stakeholder management, risk management, OKRs, DORA metrics, MLOps, and more. All outputs in Russian.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "project-management",
+        "delivery-management",
+        "technical-pm",
+        "okr",
+        "dora-metrics",
+        "stakeholder-management",
+        "risk-management",
+        "mlops",
+        "agile",
+        "devops",
+        "strategic-planning",
+        "russian"
+      ],
+      "category": "project-management",
+      "strict": false,
+      "commands": [
+        "./commands/project-kickoff.md",
+        "./commands/quarterly-planning.md",
+        "./commands/status-report.md"
+      ],
+      "agents": [
+        "./agents/project-manager.md",
+        "./agents/delivery-manager.md",
+        "./agents/technical-project-manager.md"
+      ],
+      "skills": [
+        "./skills/strategic-planning",
+        "./skills/stakeholder-management",
+        "./skills/risk-management",
+        "./skills/okr-framework",
+        "./skills/dora-metrics",
+        "./skills/architecture-decision-records",
+        "./skills/mlops-practices",
+        "./skills/incident-management"
+      ]
     }
   ]
 }
