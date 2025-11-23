@@ -3284,6 +3284,64 @@
         "./skills/team-coaching",
         "./skills/executive-communication"
       ]
+    },
+    {
+      "name": "cloud-provider-cto",
+      "source": "./plugins/cloud-provider-cto",
+      "description": "Chief Technical Officer для облачного провайдера (AWS, Azure, GCP, Oracle уровень). Технологическая стратегия, платформенная архитектура, operations excellence, security governance, innovation management. Полный набор для CTO-level decision making.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "cto",
+        "cloud-platform",
+        "technology-strategy",
+        "platform-architecture",
+        "aws",
+        "azure",
+        "gcp",
+        "oracle-cloud",
+        "sre",
+        "finops",
+        "security-governance",
+        "innovation-management",
+        "multi-cloud",
+        "cloud-economics",
+        "disaster-recovery",
+        "russian"
+      ],
+      "category": "executive-leadership",
+      "strict": false,
+      "commands": [
+        "./commands/technology-strategy-review.md",
+        "./commands/architecture-review.md",
+        "./commands/cost-optimization-analysis.md",
+        "./commands/incident-postmortem.md"
+      ],
+      "agents": [
+        "./agents/cloud-cto-strategist.md",
+        "./agents/cloud-architecture-director.md",
+        "./agents/cloud-operations-executive.md",
+        "./agents/cloud-security-chief.md",
+        "./agents/cloud-innovation-leader.md"
+      ],
+      "skills": [
+        "./skills/multi-cloud-strategy",
+        "./skills/cloud-economics",
+        "./skills/sla-engineering",
+        "./skills/cloud-security-frameworks",
+        "./skills/compliance-automation",
+        "./skills/platform-architecture-patterns",
+        "./skills/disaster-recovery-planning",
+        "./skills/capacity-management",
+        "./skills/developer-experience-design",
+        "./skills/innovation-portfolio-management"
+      ]
     }
   ]
 }
