@@ -3342,6 +3342,57 @@
         "./skills/developer-experience-design",
         "./skills/innovation-portfolio-management"
       ]
+    },
+    {
+      "name": "cloud-cmo",
+      "source": "./plugins/cloud-cmo",
+      "description": "Chief Marketing Officer облачного провайдера - комплексная маркетинговая стратегия уровня AWS/Azure/GCP/Oracle: GTM, demand generation, competitive analysis, brand management, pricing strategy, developer advocacy, enterprise marketing, partner ecosystem.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "cmo",
+        "marketing-strategy",
+        "demand-generation",
+        "competitive-analysis",
+        "brand-management",
+        "gtm-strategy",
+        "developer-advocacy",
+        "enterprise-marketing",
+        "partner-ecosystem",
+        "cloud-marketing"
+      ],
+      "category": "marketing",
+      "strict": false,
+      "commands": [
+        "./commands/launch-campaign.md",
+        "./commands/market-research.md",
+        "./commands/competitive-report.md",
+        "./commands/marketing-plan.md"
+      ],
+      "agents": [
+        "./agents/cloud-cmo.md",
+        "./agents/cloud-brand-strategist.md",
+        "./agents/cloud-growth-marketing.md",
+        "./agents/cloud-content-strategist.md",
+        "./agents/cloud-market-intelligence.md",
+        "./agents/cloud-product-marketing.md"
+      ],
+      "skills": [
+        "./skills/cloud-go-to-market-strategy",
+        "./skills/cloud-competitive-analysis",
+        "./skills/cloud-customer-segmentation",
+        "./skills/cloud-demand-generation",
+        "./skills/cloud-pricing-strategy",
+        "./skills/cloud-partner-ecosystem",
+        "./skills/cloud-developer-advocacy",
+        "./skills/cloud-enterprise-marketing"
+      ]
     }
   ]
 }
