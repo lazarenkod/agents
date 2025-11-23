@@ -1,0 +1,748 @@
+# Cost Allocation Policies
+# Enterprise-grade cost allocation rules and policies for Kubernetes
+
+---
+# ConfigMap: Cost Allocation Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cost-allocation-config
+  namespace: opencost
+data:
+  # Allocation dimensions (hierarchical)
+  allocation_dimensions: |
+    # Level 1: Organization (implicit)
+    - organization
+
+    # Level 2: Business Unit
+    - business_unit
+    - bu_cost_center
+
+    # Level 3: Team
+    - team
+    - team_cost_center
+
+    # Level 4: Service/Application
+    - service
+    - application
+
+    # Level 5: Environment
+    - environment
+
+    # Cross-cutting
+    - project
+    - owner
+
+  # Required labels for all namespaces
+  required_namespace_labels: |
+    - team                    # Which team owns this namespace
+    - environment             # dev, staging, production
+    - cost-center            # Financial cost center code
+    - budget-owner           # Email of budget owner
+
+  # Recommended labels
+  recommended_namespace_labels: |
+    - business-unit
+    - project
+    - application
+    - criticality           # high, medium, low
+
+  # Shared cost allocation method
+  shared_cost_allocation_method: "proportional"  # proportional, equal, weighted
+
+  # Idle cost allocation
+  idle_cost_allocation: "proportional"  # proportional, none, custom
+
+  # Chargeback configuration
+  chargeback_enabled: "false"  # Enable for actual billing
+  showback_enabled: "true"     # Enable for cost visibility
+
+---
+# ConfigMap: Shared Cost Rules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shared-cost-rules
+  namespace: opencost
+data:
+  rules.yaml: |
+    # Shared cost allocation rules
+    shared_costs:
+      # Control plane costs (equal split)
+      - name: cluster-control-plane
+        namespaces: [kube-system]
+        monthly_cost: 73.00  # $0.10/hour
+        allocation_method: equal
+        exclude_namespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+
+      # Ingress controller (proportional to requests)
+      - name: ingress-nginx
+        namespaces: [ingress-nginx]
+        allocation_method: proportional
+        allocation_metric: nginx_ingress_controller_requests
+        exclude_namespaces:
+          - kube-system
+          - ingress-nginx
+
+      # Monitoring stack (proportional to CPU)
+      - name: monitoring
+        namespaces: [monitoring]
+        allocation_method: proportional
+        allocation_metric: sum(rate(container_cpu_usage_seconds_total[5m]))
+        exclude_namespaces:
+          - kube-system
+          - monitoring
+
+      # Logging infrastructure (proportional to log volume)
+      - name: logging
+        namespaces: [logging]
+        allocation_method: proportional
+        allocation_metric: sum(rate(loki_distributor_bytes_received_total[5m]))
+        exclude_namespaces:
+          - kube-system
+          - logging
+
+      # Security scanning (proportional to pod count)
+      - name: security-scanning
+        namespaces: [security]
+        allocation_method: proportional
+        allocation_metric: count(kube_pod_info)
+        exclude_namespaces:
+          - kube-system
+          - security
+
+      # DNS services (equal split)
+      - name: dns
+        namespaces: [kube-system]
+        services: [kube-dns, coredns]
+        allocation_method: equal
+        exclude_namespaces:
+          - kube-system
+
+      # Certificate management (equal split)
+      - name: cert-manager
+        namespaces: [cert-manager]
+        allocation_method: equal
+        exclude_namespaces:
+          - kube-system
+          - cert-manager
+
+    # Idle cost allocation
+    idle_costs:
+      allocation_method: proportional
+      allocation_base: resource_requests
+      # Options: resource_requests, resource_usage, equal
+
+---
+# ConfigMap: Pricing Model
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pricing-model
+  namespace: opencost
+data:
+  pricing.yaml: |
+    # Compute pricing
+    compute:
+      cpu:
+        unit: core-hour
+        tiers:
+          - name: on-demand
+            rate_usd: 0.031
+            default: true
+
+          - name: reserved-1yr
+            rate_usd: 0.020
+            discount_percent: 35
+            commitment: 1-year
+            label_selector:
+              node_type: reserved
+
+          - name: reserved-3yr
+            rate_usd: 0.015
+            discount_percent: 52
+            commitment: 3-year
+            label_selector:
+              node_type: reserved-3yr
+
+          - name: spot
+            rate_usd: 0.009
+            discount_percent: 71
+            label_selector:
+              karpenter.sh/capacity-type: spot
+
+      memory:
+        unit: gb-hour
+        tiers:
+          - name: on-demand
+            rate_usd: 0.004
+            default: true
+
+          - name: reserved-1yr
+            rate_usd: 0.0026
+            discount_percent: 35
+
+          - name: spot
+            rate_usd: 0.0012
+            discount_percent: 70
+
+    # Storage pricing
+    storage:
+      persistent_volumes:
+        standard_hdd:
+          unit: gb-month
+          rate_usd: 0.05
+          storage_class: standard
+
+        standard_ssd:
+          unit: gb-month
+          rate_usd: 0.17
+          storage_class: standard-ssd
+
+        premium_ssd:
+          unit: gb-month
+          rate_usd: 0.35
+          storage_class: premium-ssd
+
+        ultra_ssd:
+          unit: gb-month
+          rate_usd: 0.70
+          storage_class: ultra-ssd
+
+      snapshots:
+        unit: gb-month
+        rate_usd: 0.026
+
+    # Network pricing
+    network:
+      ingress:
+        rate_usd: 0.00  # Free
+
+      egress_internal_same_zone:
+        rate_usd: 0.00  # Free
+
+      egress_internal_cross_zone:
+        rate_usd: 0.01  # Per GB
+        unit: gb
+
+      egress_internal_cross_region:
+        rate_usd: 0.02  # Per GB
+        unit: gb
+
+      egress_internet:
+        rate_usd: 0.09  # Per GB
+        unit: gb
+
+    # Load balancer pricing
+    load_balancers:
+      network_lb:
+        hourly_rate_usd: 0.025
+        data_processed_rate_usd: 0.008  # Per GB
+
+      application_lb:
+        hourly_rate_usd: 0.040
+        data_processed_rate_usd: 0.008  # Per GB
+
+    # Multipliers and adjustments
+    multipliers:
+      # Management overhead (5%)
+      management_overhead: 1.05
+
+      # Environment-specific multipliers
+      environment:
+        production: 1.0
+        staging: 0.8     # 20% discount
+        development: 0.5  # 50% discount
+
+      # Team-specific discounts (volume discounts)
+      team_discounts:
+        - team: platform
+          discount_percent: 10
+          reason: "High volume consumer"
+
+        - team: data-engineering
+          discount_percent: 15
+          reason: "Reserved capacity commitment"
+
+---
+# ConfigMap: Budget Policies
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: budget-policies
+  namespace: opencost
+data:
+  policies.yaml: |
+    # Budget enforcement policies
+    budgets:
+      # Global budget
+      - name: global-monthly
+        scope: cluster
+        amount_usd: 100000
+        period: monthly
+        alerts:
+          - threshold_percent: 50
+            severity: info
+            notification_channels: [email, slack]
+          - threshold_percent: 80
+            severity: warning
+            notification_channels: [email, slack, pagerduty]
+          - threshold_percent: 100
+            severity: critical
+            notification_channels: [email, slack, pagerduty]
+            actions:
+              - type: scale_down_non_critical
+              - type: alert_finance_team
+
+      # Business unit budgets
+      - name: engineering-monthly
+        scope: business_unit
+        label_selector:
+          business_unit: engineering
+        amount_usd: 60000
+        period: monthly
+        alerts:
+          - threshold_percent: 80
+            severity: warning
+          - threshold_percent: 100
+            severity: critical
+
+      # Team budgets
+      - name: team-backend-monthly
+        scope: team
+        label_selector:
+          team: backend
+        amount_usd: 15000
+        period: monthly
+        alerts:
+          - threshold_percent: 80
+            severity: warning
+          - threshold_percent: 95
+            severity: critical
+            actions:
+              - type: notify_team_lead
+              - type: restrict_scaling
+
+      # Namespace budgets
+      - name: production-api-monthly
+        scope: namespace
+        namespace: production-api
+        amount_usd: 5000
+        period: monthly
+        alerts:
+          - threshold_percent: 80
+            severity: warning
+          - threshold_percent: 100
+            severity: critical
+
+    # Cost anomaly detection
+    anomaly_detection:
+      enabled: true
+      sensitivity: medium  # low, medium, high
+      lookback_days: 7
+      threshold_multiplier: 1.5  # Alert if 50% above normal
+
+      rules:
+        - name: sudden-cost-spike
+          condition: current_cost > (avg_7d_cost * 1.5)
+          window: 1h
+          severity: warning
+
+        - name: gradual-cost-increase
+          condition: current_cost > (avg_30d_cost * 1.2)
+          window: 7d
+          severity: info
+
+        - name: new-expensive-workload
+          condition: new_namespace_cost > 1000
+          window: 1h
+          severity: info
+
+---
+# Namespace Template with Cost Allocation Labels
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-backend-prod
+  labels:
+    # Required labels (Level 1-4)
+    organization: "acme-corp"
+    business-unit: "engineering"
+    bu-cost-center: "CC-1000"
+    team: "backend"
+    team-cost-center: "CC-1100"
+    service: "api-server"
+    environment: "production"
+
+    # Optional labels
+    project: "payments-platform"
+    application: "payments-api"
+    owner: "backend-team@acme.com"
+    criticality: "high"
+
+    # Cost allocation settings
+    cost-allocation-method: "direct"  # direct, shared, hybrid
+    chargeback-enabled: "true"
+
+  annotations:
+    # Budget information
+    cost.kubernetes.io/budget-monthly: "5000"
+    cost.kubernetes.io/budget-currency: "USD"
+    cost.kubernetes.io/budget-owner: "jane.doe@acme.com"
+
+    # Alert thresholds
+    cost.kubernetes.io/alert-threshold-warning: "80"
+    cost.kubernetes.io/alert-threshold-critical: "95"
+
+    # Cost center mapping
+    cost.kubernetes.io/cost-center: "CC-1100"
+    cost.kubernetes.io/billing-account: "BA-12345"
+
+    # Allocation settings
+    cost.kubernetes.io/shared-cost-weight: "1.0"
+    cost.kubernetes.io/idle-cost-allocation: "proportional"
+
+    # Optimization flags
+    cost.kubernetes.io/enable-rightsizing: "true"
+    cost.kubernetes.io/enable-spot-recommendations: "false"  # Critical workload
+
+---
+# ValidatingWebhook: Enforce cost allocation labels
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: cost-allocation-validator
+webhooks:
+- name: validate.cost-allocation.example.com
+  admissionReviewVersions: ["v1", "v1beta1"]
+  clientConfig:
+    service:
+      name: cost-allocation-webhook
+      namespace: opencost
+      path: "/validate"
+    caBundle: ""  # CA bundle for TLS
+  rules:
+  - operations: ["CREATE", "UPDATE"]
+    apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["namespaces"]
+    scope: "Cluster"
+  failurePolicy: Fail
+  sideEffects: None
+  timeoutSeconds: 10
+
+---
+# Example: Cost Allocation Report CRD (Custom Resource Definition)
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: costallocationreports.finops.example.com
+spec:
+  group: finops.example.com
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              scope:
+                type: string
+                enum: [cluster, namespace, team, business_unit]
+              aggregation:
+                type: string
+                enum: [namespace, team, service, application]
+              window:
+                type: string
+                description: "Time window (e.g., '7d', '30d', 'month')"
+              includeSharedCosts:
+                type: boolean
+              includeIdleCosts:
+                type: boolean
+              format:
+                type: string
+                enum: [json, csv, pdf]
+              recipients:
+                type: array
+                items:
+                  type: string
+          status:
+            type: object
+            properties:
+              lastGenerated:
+                type: string
+                format: date-time
+              reportUrl:
+                type: string
+              totalCost:
+                type: number
+  scope: Cluster
+  names:
+    plural: costallocationreports
+    singular: costallocationreport
+    kind: CostAllocationReport
+    shortNames:
+    - car
+
+---
+# Example: Cost Allocation Report Instance
+apiVersion: finops.example.com/v1
+kind: CostAllocationReport
+metadata:
+  name: weekly-team-report
+  namespace: opencost
+spec:
+  scope: team
+  aggregation: namespace
+  window: 7d
+  includeSharedCosts: true
+  includeIdleCosts: true
+  format: pdf
+  recipients:
+    - engineering-leads@acme.com
+    - finops-team@acme.com
+  schedule: "0 9 * * 1"  # Monday 9 AM
+
+---
+# LimitRange: Cost control through resource limits
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: cost-control-limits
+  namespace: development  # Example: apply to dev namespaces
+spec:
+  limits:
+  # Container limits
+  - type: Container
+    max:
+      cpu: "4"
+      memory: "8Gi"
+    min:
+      cpu: "10m"
+      memory: "16Mi"
+    default:
+      cpu: "500m"
+      memory: "512Mi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "128Mi"
+    maxLimitRequestRatio:
+      cpu: "4"      # Limit can be max 4x request
+      memory: "4"
+
+  # Pod limits
+  - type: Pod
+    max:
+      cpu: "8"
+      memory: "16Gi"
+
+  # PVC limits
+  - type: PersistentVolumeClaim
+    max:
+      storage: "500Gi"
+    min:
+      storage: "1Gi"
+
+---
+# ResourceQuota: Budget enforcement through quotas
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-backend-quota
+  namespace: team-backend-prod
+  annotations:
+    cost.kubernetes.io/monthly-budget: "5000"
+    cost.kubernetes.io/estimated-monthly-cost: "4250"
+spec:
+  hard:
+    # Compute quotas
+    requests.cpu: "50"           # 50 cores × $0.031/hr × 730hr = ~$1,130/month
+    requests.memory: "100Gi"     # 100GB × $0.004/hr × 730hr = ~$292/month
+    limits.cpu: "100"
+    limits.memory: "200Gi"
+
+    # Storage quotas
+    requests.storage: "2Ti"      # 2048GB × $0.17/month = ~$348/month
+    persistentvolumeclaims: "50"
+
+    # Object quotas
+    pods: "200"
+    services: "50"
+    services.loadbalancers: "5"  # 5 × $16.20/month = ~$81/month
+
+  # Scope selectors
+  scopeSelector:
+    matchExpressions:
+    - operator: In
+      scopeName: PriorityClass
+      values: ["medium", "low"]  # Don't limit high-priority workloads
+
+---
+# PriorityClass: Cost-aware scheduling
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: cost-optimized
+  annotations:
+    cost.kubernetes.io/preferred-node-type: "spot"
+    cost.kubernetes.io/max-cost-per-hour: "0.50"
+value: 100
+globalDefault: false
+description: "Cost-optimized workloads (spot-eligible, burstable)"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: cost-aware-production
+  annotations:
+    cost.kubernetes.io/preferred-node-type: "on-demand"
+    cost.kubernetes.io/enable-rightsizing: "true"
+value: 1000
+globalDefault: true
+description: "Production workloads with cost awareness"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: cost-no-limit
+  annotations:
+    cost.kubernetes.io/ignore-budget: "true"
+value: 10000
+globalDefault: false
+description: "Critical workloads (no cost limits)"
+
+---
+# ConfigMap: Cost Optimization Policies
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cost-optimization-policies
+  namespace: opencost
+data:
+  policies.yaml: |
+    # Automated cost optimization policies
+    optimization:
+      # Right-sizing
+      rightsizing:
+        enabled: true
+        min_savings_threshold_usd: 50  # Only recommend if saves $50+/month
+        max_change_percent: 30         # Max 30% change in resources
+        approval_required: true
+        auto_apply: false              # Require manual approval
+
+        exclude_namespaces:
+          - production-critical
+          - high-priority
+
+        include_namespaces:
+          - development
+          - staging
+
+      # Spot instance migration
+      spot_migration:
+        enabled: true
+        min_savings_threshold_usd: 100
+        approval_required: true
+        auto_apply: false
+
+        eligibility_criteria:
+          - no_stateful_workloads: true
+          - max_restart_frequency: 3/day
+          - no_strict_sla: true
+
+        exclude_labels:
+          criticality: high
+
+      # Idle resource cleanup
+      idle_cleanup:
+        enabled: true
+        idle_threshold_days: 7
+        cpu_utilization_threshold: 5  # < 5% CPU
+        auto_delete: false
+        approval_required: true
+
+        exclude_namespaces:
+          - production
+
+      # Storage optimization
+      storage_optimization:
+        enabled: true
+
+        rules:
+          - name: downgrade-premium-to-standard
+            condition: iops_usage < 1000
+            current_class: premium-ssd
+            recommended_class: standard-ssd
+            min_savings_usd: 30
+
+          - name: cleanup-old-snapshots
+            condition: age > 30d
+            action: delete
+            approval_required: false
+
+      # Development environment scheduling
+      dev_scheduling:
+        enabled: true
+        shutdown_schedule: "0 20 * * 1-5"  # 8 PM weekdays
+        startup_schedule: "0 6 * * 1-5"    # 6 AM weekdays
+
+        namespaces:
+          - development
+          - dev-*
+          - test-*
+
+        exclude_labels:
+          keep-alive: "true"
+
+---
+# Example: Multi-Tenant Cost Allocation
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: multi-tenant-allocation
+  namespace: opencost
+data:
+  tenants.yaml: |
+    # Multi-tenant cost allocation
+    tenants:
+      - name: customer-a
+        billing_account: "BA-10001"
+        namespaces:
+          - customer-a-prod
+          - customer-a-staging
+        cost_allocation:
+          method: direct
+          overhead_percentage: 5  # 5% platform fee
+        pricing_tier: enterprise
+        discount_percentage: 15
+
+      - name: customer-b
+        billing_account: "BA-10002"
+        namespaces:
+          - customer-b-prod
+        cost_allocation:
+          method: direct
+          overhead_percentage: 10  # 10% platform fee
+        pricing_tier: standard
+        discount_percentage: 0
+
+      - name: internal-platform
+        billing_account: "internal"
+        namespaces:
+          - platform-*
+          - monitoring
+          - logging
+        cost_allocation:
+          method: internal
+          chargeback: false
+        pricing_tier: internal
+        discount_percentage: 0

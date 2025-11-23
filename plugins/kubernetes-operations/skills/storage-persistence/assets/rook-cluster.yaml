@@ -1,0 +1,630 @@
+# Production Rook-Ceph Cluster Configuration
+# This configuration deploys a production-grade Ceph cluster on Kubernetes
+# Documentation: https://rook.io/docs/rook/latest/CRDs/Cluster/ceph-cluster-crd/
+
+---
+# Namespace for Rook Ceph
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-ceph
+
+---
+# Ceph Cluster CRD
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  # Ceph version
+  cephVersion:
+    image: quay.io/ceph/ceph:v18.2.0  # Reef (LTS)
+    allowUnsupported: false
+
+  # Data directory on host
+  dataDirHostPath: /var/lib/rook
+
+  # Skip filesystem creation on devices
+  skipUpgradeChecks: false
+
+  # Continue if PGs are degraded
+  continueUpgradeAfterChecksEvenIfNotHealthy: false
+
+  # Wait timeout for health checks
+  waitTimeoutForHealthyOSDInMinutes: 10
+
+  # Mon configuration (odd number: 1, 3, 5)
+  mon:
+    count: 3
+    allowMultiplePerNode: false
+    volumeClaimTemplate:
+      spec:
+        storageClassName: fast-ssd
+        resources:
+          requests:
+            storage: 10Gi
+
+  # Manager configuration
+  mgr:
+    count: 2
+    allowMultiplePerNode: false
+    modules:
+    - name: pg_autoscaler
+      enabled: true
+    - name: prometheus
+      enabled: true
+    - name: crash
+      enabled: true
+    - name: rook
+      enabled: true
+
+  # Enable Ceph Dashboard
+  dashboard:
+    enabled: true
+    ssl: true
+    port: 7000
+
+  # Enable Prometheus monitoring
+  monitoring:
+    enabled: true
+    interval: 60s
+
+  # Network configuration
+  network:
+    provider: host  # or multus for advanced networking
+    # hostNetwork: true  # Use host networking (optional)
+
+  # Crash collector for debugging
+  crashCollector:
+    disable: false
+    daysToRetain: 7
+
+  # Log collector
+  logCollector:
+    enabled: true
+    periodicity: daily
+    maxLogSize: 500M
+
+  # Cleanup policy (careful with this!)
+  cleanupPolicy:
+    confirmation: ""  # Must be "yes-really-destroy-data" to cleanup on deletion
+    sanitizeDisks:
+      method: quick
+      dataSource: zero
+      iteration: 1
+    allowUninstallWithVolumes: false
+
+  # Remove OSDs marked as down
+  removeOSDsIfOutAndSafeToRemove: false
+
+  # Priority class for Ceph pods
+  priorityClassNames:
+    mon: system-node-critical
+    osd: system-node-critical
+    mgr: system-cluster-critical
+
+  # Storage configuration
+  storage:
+    # Use all available devices
+    useAllNodes: false
+    useAllDevices: false
+
+    # Device filter
+    # deviceFilter: "^sd[a-z]"
+    # devicePathFilter: "^/dev/disk/by-path/.*"
+
+    # Configuration for specific nodes
+    nodes:
+    - name: "node1"
+      devices:
+      - name: "sdb"  # Raw block device
+      - name: "sdc"
+      config:
+        storeType: bluestore
+        metadataDevice: "nvme0n1"  # Optional: separate metadata device
+
+    - name: "node2"
+      devices:
+      - name: "sdb"
+      - name: "sdc"
+      config:
+        storeType: bluestore
+
+    - name: "node3"
+      devices:
+      - name: "sdb"
+      - name: "sdc"
+      config:
+        storeType: bluestore
+
+    # On-PVC configuration (for cloud environments without local disks)
+    # storageClassDeviceSets:
+    # - name: set1
+    #   count: 3  # Number of OSDs
+    #   portable: true
+    #   tuneSlowDeviceClass: false
+    #   encrypted: false
+    #   volumeClaimTemplates:
+    #   - metadata:
+    #       name: data
+    #     spec:
+    #       resources:
+    #         requests:
+    #           storage: 500Gi
+    #       storageClassName: gp3
+    #       volumeMode: Block
+    #       accessModes:
+    #       - ReadWriteOnce
+    #   placement:
+    #     podAntiAffinity:
+    #       requiredDuringSchedulingIgnoredDuringExecution:
+    #       - labelSelector:
+    #           matchExpressions:
+    #           - key: app
+    #             operator: In
+    #             values:
+    #             - rook-ceph-osd
+    #         topologyKey: kubernetes.io/hostname
+
+  # Placement configuration for production
+  placement:
+    all:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: role
+              operator: In
+              values:
+              - storage-node
+      tolerations:
+      - key: storage-node
+        operator: Exists
+        effect: NoSchedule
+
+    mon:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - rook-ceph-mon
+          topologyKey: kubernetes.io/hostname
+
+    mgr:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - rook-ceph-mgr
+            topologyKey: kubernetes.io/hostname
+
+    osd:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - rook-ceph-osd
+            topologyKey: kubernetes.io/hostname
+
+  # Resource configuration
+  resources:
+    mon:
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+      requests:
+        cpu: "500m"
+        memory: "2Gi"
+    mgr:
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+    osd:
+      limits:
+        cpu: "4000m"
+        memory: "8Gi"
+      requests:
+        cpu: "1000m"
+        memory: "4Gi"
+    prepareosd:
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+      requests:
+        cpu: "500m"
+        memory: "500Mi"
+    mgr-sidecar:
+      limits:
+        cpu: "500m"
+        memory: "100Mi"
+      requests:
+        cpu: "100m"
+        memory: "40Mi"
+    crashcollector:
+      limits:
+        cpu: "500m"
+        memory: "60Mi"
+      requests:
+        cpu: "100m"
+        memory: "60Mi"
+    logcollector:
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+      requests:
+        cpu: "100m"
+        memory: "100Mi"
+    cleanup:
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+      requests:
+        cpu: "500m"
+        memory: "100Mi"
+
+  # Disruption budget
+  disruptionManagement:
+    managePodBudgets: true
+    osdMaintenanceTimeout: 30
+    pgHealthCheckTimeout: 0
+    manageMachineDisruptionBudgets: false
+    machineDisruptionBudgetNamespace: openshift-machine-api
+
+  # Health checks
+  healthCheck:
+    daemonHealth:
+      mon:
+        disabled: false
+        interval: 45s
+      osd:
+        disabled: false
+        interval: 60s
+      status:
+        disabled: false
+        interval: 60s
+    livenessProbe:
+      mon:
+        disabled: false
+      mgr:
+        disabled: false
+      osd:
+        disabled: false
+
+---
+# Block Pool for RBD
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  # Failure domain (host, osd, rack, etc.)
+  failureDomain: host
+
+  # Replication settings
+  replicated:
+    size: 3  # Number of replicas
+    requireSafeReplicaSize: true
+    replicasPerFailureDomain: 1
+
+  # Erasure coding (alternative to replication)
+  # erasureCoded:
+  #   dataChunks: 2
+  #   codingChunks: 1
+
+  # Compression
+  compressionMode: aggressive  # none, passive, aggressive, force
+  deviceClass: ssd  # hdd, ssd, nvme
+
+  # Enable mirroring for disaster recovery
+  mirroring:
+    enabled: false
+    mode: image  # image or pool
+
+  # Status check
+  statusCheck:
+    mirror:
+      disabled: false
+      interval: 60s
+
+  # Quotas
+  quotas:
+    maxBytes: 10737418240000  # 10TB
+    maxObjects: 1000000
+
+---
+# Filesystem for CephFS
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
+metadata:
+  name: myfs
+  namespace: rook-ceph
+spec:
+  # Metadata pool
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+      requireSafeReplicaSize: true
+    compressionMode: aggressive
+    deviceClass: ssd
+
+  # Data pools
+  dataPools:
+  - name: replicated
+    failureDomain: host
+    replicated:
+      size: 3
+      requireSafeReplicaSize: true
+    compressionMode: aggressive
+    deviceClass: ssd
+
+  # Preserve filesystem on deletion
+  preserveFilesystemOnDelete: true
+
+  # Metadata server configuration
+  metadataServer:
+    activeCount: 1
+    activeStandby: true
+    placement:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - rook-ceph-mds
+          topologyKey: kubernetes.io/hostname
+    resources:
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+      requests:
+        cpu: "500m"
+        memory: "2Gi"
+    priorityClassName: system-cluster-critical
+
+  # Mirroring
+  mirroring:
+    enabled: false
+
+  # Status check
+  statusCheck:
+    mirror:
+      disabled: false
+      interval: 60s
+
+---
+# Object Store (S3-compatible)
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph
+spec:
+  # Metadata pool
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+
+  # Data pool
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+    compressionMode: aggressive
+
+  # Preserve pools on deletion
+  preservePoolsOnDelete: true
+
+  # Gateway configuration
+  gateway:
+    port: 80
+    instances: 2
+    placement:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - rook-ceph-rgw
+          topologyKey: kubernetes.io/hostname
+    resources:
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+    priorityClassName: system-cluster-critical
+
+  # Health check
+  healthCheck:
+    bucket:
+      disabled: false
+      interval: 60s
+
+---
+# Storage Class for Block Storage (RBD)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-block
+provisioner: rook-ceph.rbd.csi.ceph.com
+parameters:
+  clusterID: rook-ceph
+  pool: replicapool
+  imageFormat: "2"
+  imageFeatures: layering
+
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+
+  csi.storage.k8s.io/fstype: ext4
+
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+
+---
+# Storage Class for Filesystem (CephFS)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-cephfs
+provisioner: rook-ceph.cephfs.csi.ceph.com
+parameters:
+  clusterID: rook-ceph
+  fsName: myfs
+  pool: myfs-replicated
+
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+---
+# VolumeSnapshotClass for RBD snapshots
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: csi-rbdplugin-snapclass
+driver: rook-ceph.rbd.csi.ceph.com
+parameters:
+  clusterID: rook-ceph
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: rook-ceph
+deletionPolicy: Delete
+
+---
+# VolumeSnapshotClass for CephFS snapshots
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: csi-cephfsplugin-snapclass
+driver: rook-ceph.cephfs.csi.ceph.com
+parameters:
+  clusterID: rook-ceph
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: rook-ceph
+deletionPolicy: Delete
+
+---
+# Toolbox for Ceph CLI access
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-ceph-tools
+  namespace: rook-ceph
+  labels:
+    app: rook-ceph-tools
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rook-ceph-tools
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-tools
+    spec:
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: rook-ceph-tools
+        image: quay.io/ceph/ceph:v18.2.0
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Wait for monitors to come up
+          while [ ! -f /etc/ceph/ceph.conf ]; do
+            echo "Waiting for ceph.conf..."
+            sleep 5
+          done
+          # Keep container running
+          sleep infinity
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: ROOK_CEPH_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: rook-ceph-mon
+              key: ceph-username
+        - name: ROOK_CEPH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: rook-ceph-mon
+              key: ceph-secret
+        volumeMounts:
+        - mountPath: /etc/ceph
+          name: ceph-config
+        - name: mon-endpoint-volume
+          mountPath: /etc/rook
+      volumes:
+      - name: mon-endpoint-volume
+        configMap:
+          name: rook-ceph-mon-endpoints
+          items:
+          - key: data
+            path: mon-endpoints
+      - name: ceph-config
+        emptyDir: {}
+      tolerations:
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 5
+
+---
+# Service Monitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+  labels:
+    team: rook
+spec:
+  namespaceSelector:
+    matchNames:
+    - rook-ceph
+  selector:
+    matchLabels:
+      app: rook-ceph-mgr
+      rook_cluster: rook-ceph
+      ceph_daemon_type: mgr
+  endpoints:
+  - port: http-metrics
+    path: /metrics
+    interval: 30s
+    honorLabels: true

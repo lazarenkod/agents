@@ -1,0 +1,816 @@
+# Kyverno Policy Library
+# Complete collection of production-ready Kyverno policies
+
+---
+# Disallow Privileged Containers
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged-containers
+  annotations:
+    policies.kyverno.io/title: Disallow Privileged Containers
+    policies.kyverno.io/category: Pod Security Standards (Baseline)
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Privileged mode disables most security mechanisms and should not be allowed.
+      This policy ensures containers do not run in privileged mode.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: privileged-containers
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "Privileged mode is disallowed. The field spec.containers[*].securityContext.privileged must be unset or set to false."
+      pattern:
+        spec:
+          =(ephemeralContainers):
+          - =(securityContext):
+              =(privileged): false
+          =(initContainers):
+          - =(securityContext):
+              =(privileged): false
+          containers:
+          - =(securityContext):
+              =(privileged): false
+
+---
+# Require Run As Non-Root
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-run-as-nonroot
+  annotations:
+    policies.kyverno.io/title: Require Run As Non-Root User
+    policies.kyverno.io/category: Pod Security Standards (Restricted)
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Containers must not run as root. This policy ensures runAsNonRoot is set to true.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: run-as-non-root
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "Running as root is not allowed. Set runAsNonRoot to true."
+      pattern:
+        spec:
+          securityContext:
+            runAsNonRoot: true
+          containers:
+          - securityContext:
+              runAsNonRoot: true
+
+---
+# Disallow Privilege Escalation
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privilege-escalation
+  annotations:
+    policies.kyverno.io/title: Disallow Privilege Escalation
+    policies.kyverno.io/category: Pod Security Standards (Restricted)
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Privilege escalation should not be allowed. This policy ensures
+      allowPrivilegeEscalation is set to false.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: privilege-escalation
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "Privilege escalation is disallowed. Set allowPrivilegeEscalation to false."
+      pattern:
+        spec:
+          =(ephemeralContainers):
+          - securityContext:
+              allowPrivilegeEscalation: false
+          =(initContainers):
+          - securityContext:
+              allowPrivilegeEscalation: false
+          containers:
+          - securityContext:
+              allowPrivilegeEscalation: false
+
+---
+# Drop All Capabilities
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: drop-all-capabilities
+  annotations:
+    policies.kyverno.io/title: Drop All Capabilities
+    policies.kyverno.io/category: Pod Security Standards (Restricted)
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Capabilities permit privileged actions without giving full root access.
+      All capabilities should be dropped with only those required added back.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: drop-all-capabilities
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "All capabilities must be dropped. Add only specific capabilities that are required."
+      pattern:
+        spec:
+          =(ephemeralContainers):
+          - securityContext:
+              capabilities:
+                drop:
+                - ALL
+          =(initContainers):
+          - securityContext:
+              capabilities:
+                drop:
+                - ALL
+          containers:
+          - securityContext:
+              capabilities:
+                drop:
+                - ALL
+
+---
+# Require Resource Limits
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Require Resource Limits
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Resource limits protect cluster resources. This policy requires CPU and
+      memory limits for all containers.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: require-cpu-limit
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "CPU limit is required. Set spec.containers[*].resources.limits.cpu."
+      pattern:
+        spec:
+          containers:
+          - resources:
+              limits:
+                cpu: "?*"
+  - name: require-memory-limit
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "Memory limit is required. Set spec.containers[*].resources.limits.memory."
+      pattern:
+        spec:
+          containers:
+          - resources:
+              limits:
+                memory: "?*"
+
+---
+# Require Resource Requests
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-requests
+  annotations:
+    policies.kyverno.io/title: Require Resource Requests
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: require-cpu-request
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "CPU request is required. Set spec.containers[*].resources.requests.cpu."
+      pattern:
+        spec:
+          containers:
+          - resources:
+              requests:
+                cpu: "?*"
+  - name: require-memory-request
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "Memory request is required. Set spec.containers[*].resources.requests.memory."
+      pattern:
+        spec:
+          containers:
+          - resources:
+              requests:
+                memory: "?*"
+
+---
+# Require Labels
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+  annotations:
+    policies.kyverno.io/title: Require Standard Labels
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod, Deployment, Service
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  - name: check-for-labels
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+          - Service
+    validate:
+      message: "Required labels are missing: team, environment, cost-center"
+      pattern:
+        metadata:
+          labels:
+            team: "?*"
+            environment: "dev | staging | prod"
+            cost-center: "?*"
+
+---
+# Restrict Image Registries
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+  annotations:
+    policies.kyverno.io/title: Restrict Image Registries
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Images should only come from approved registries. This policy restricts
+      images to specific registries.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: validate-registries
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - kube-system
+          - kube-public
+    validate:
+      message: "Images must come from approved registries: gcr.io/mycompany, registry.company.com, quay.io/company"
+      foreach:
+      - list: "request.object.spec.containers"
+        pattern:
+          image: "gcr.io/mycompany/* | registry.company.com/* | quay.io/company/*"
+
+---
+# Disallow Latest Tag
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Tag
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      The ':latest' tag is mutable and can lead to unexpected errors.
+      This policy requires a specific image tag.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: require-image-tag
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "Image tag ':latest' is not allowed. Use a specific tag."
+      foreach:
+      - list: "request.object.spec.containers"
+        deny:
+          conditions:
+            any:
+            - key: "{{ element.image }}"
+              operator: Equals
+              value: "*:latest"
+            - key: "{{ element.image }}"
+              operator: Equals
+              value: "*"
+
+---
+# Disallow Host Namespaces
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-host-namespaces
+  annotations:
+    policies.kyverno.io/title: Disallow Host Namespaces
+    policies.kyverno.io/category: Pod Security Standards (Baseline)
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Host namespaces (PID, IPC, Network) should not be shared.
+      This policy ensures these are not set to true.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: host-namespaces
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "Sharing host namespaces is disallowed. Set hostNetwork, hostIPC, and hostPID to false."
+      pattern:
+        spec:
+          =(hostNetwork): false
+          =(hostIPC): false
+          =(hostPID): false
+
+---
+# Disallow Host Path
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-host-path
+  annotations:
+    policies.kyverno.io/title: Disallow Host Path
+    policies.kyverno.io/category: Pod Security Standards (Baseline)
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      HostPath volumes may allow access to the host filesystem.
+      This policy disallows hostPath volumes.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: host-path
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "HostPath volumes are not allowed."
+      pattern:
+        spec:
+          =(volumes):
+          - X(hostPath): "null"
+
+---
+# Require Read-Only Root Filesystem
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-ro-rootfs
+  annotations:
+    policies.kyverno.io/title: Require Read-Only Root Filesystem
+    policies.kyverno.io/category: Pod Security Standards (Restricted)
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: validate-readOnlyRootFilesystem
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "Root filesystem must be read-only. Set readOnlyRootFilesystem to true."
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              readOnlyRootFilesystem: true
+
+---
+# Add Default Security Context
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-default-securitycontext
+  annotations:
+    policies.kyverno.io/title: Add Default Security Context
+    policies.kyverno.io/category: Pod Security Standards (Baseline)
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Applies a default security context to Pods that don't have one defined.
+spec:
+  background: false
+  rules:
+  - name: add-securitycontext
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - kube-system
+    mutate:
+      patchStrategicMerge:
+        spec:
+          securityContext:
+            +(runAsNonRoot): true
+            +(seccompProfile):
+              type: RuntimeDefault
+          containers:
+          - (name): "*"
+            securityContext:
+              +(allowPrivilegeEscalation): false
+              +(capabilities):
+                drop:
+                - ALL
+              +(runAsNonRoot): true
+
+---
+# Add Default Resource Limits
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-default-resources
+  annotations:
+    policies.kyverno.io/title: Add Default Resource Limits
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+spec:
+  background: false
+  rules:
+  - name: add-default-resources
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - kube-system
+    mutate:
+      patchStrategicMerge:
+        spec:
+          containers:
+          - (name): "*"
+            resources:
+              +(limits):
+                +(memory): "512Mi"
+                +(cpu): "500m"
+              +(requests):
+                +(memory): "256Mi"
+                +(cpu): "100m"
+
+---
+# Add Default Network Policy
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-networkpolicy
+  annotations:
+    policies.kyverno.io/title: Add Default NetworkPolicy
+    policies.kyverno.io/category: Multi-Tenancy
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Namespace
+    policies.kyverno.io/description: >-
+      Generates a default deny-all NetworkPolicy for new namespaces.
+spec:
+  background: true
+  rules:
+  - name: default-deny-all
+    match:
+      any:
+      - resources:
+          kinds:
+          - Namespace
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - default
+    generate:
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      name: default-deny-all
+      namespace: "{{request.object.metadata.name}}"
+      synchronize: true
+      data:
+        spec:
+          podSelector: {}
+          policyTypes:
+          - Ingress
+          - Egress
+
+---
+# Generate ResourceQuota
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-resourcequota
+  annotations:
+    policies.kyverno.io/title: Add Default ResourceQuota
+    policies.kyverno.io/category: Multi-Tenancy
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Namespace
+spec:
+  background: true
+  rules:
+  - name: default-quota
+    match:
+      any:
+      - resources:
+          kinds:
+          - Namespace
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - kube-system
+          - kube-public
+    generate:
+      apiVersion: v1
+      kind: ResourceQuota
+      name: default-quota
+      namespace: "{{request.object.metadata.name}}"
+      synchronize: true
+      data:
+        spec:
+          hard:
+            requests.cpu: "10"
+            requests.memory: "20Gi"
+            limits.cpu: "20"
+            limits.memory: "40Gi"
+            persistentvolumeclaims: "10"
+
+---
+# Generate LimitRange
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-limitrange
+  annotations:
+    policies.kyverno.io/title: Add Default LimitRange
+    policies.kyverno.io/category: Multi-Tenancy
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Namespace
+spec:
+  background: true
+  rules:
+  - name: default-limitrange
+    match:
+      any:
+      - resources:
+          kinds:
+          - Namespace
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - kube-system
+    generate:
+      apiVersion: v1
+      kind: LimitRange
+      name: default-limitrange
+      namespace: "{{request.object.metadata.name}}"
+      synchronize: true
+      data:
+        spec:
+          limits:
+          - default:
+              cpu: "500m"
+              memory: "512Mi"
+            defaultRequest:
+              cpu: "100m"
+              memory: "256Mi"
+            max:
+              cpu: "2"
+              memory: "2Gi"
+            min:
+              cpu: "50m"
+              memory: "128Mi"
+            type: Container
+
+---
+# Verify Image Signatures
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+  annotations:
+    policies.kyverno.io/title: Verify Image Signatures
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Images must be signed by a trusted authority. This policy verifies
+      image signatures using Cosign.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  rules:
+  - name: verify-signature
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    verifyImages:
+    - imageReferences:
+      - "gcr.io/mycompany/*"
+      - "registry.company.com/*"
+      attestors:
+      - count: 1
+        entries:
+        - keys:
+            publicKeys: |-
+              -----BEGIN PUBLIC KEY-----
+              MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEahmSvGFmxMJABilV1usgsw6ImcQ/
+              gDaxw57Sq+uNGHW8Q3zUSx46PuRqdTI+4qE3Ng1lrKJLXd+HqkWwbs2hBg==
+              -----END PUBLIC KEY-----
+
+---
+# Require Seccomp Profile
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-seccomp-profile
+  annotations:
+    policies.kyverno.io/title: Require Seccomp Profile
+    policies.kyverno.io/category: Pod Security Standards (Restricted)
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: check-seccomp-profile
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      message: "Seccomp profile is required. Use RuntimeDefault or Localhost."
+      pattern:
+        spec:
+          securityContext:
+            seccompProfile:
+              type: "RuntimeDefault | Localhost"
+
+---
+# Disallow NodePort Services
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-nodeport-services
+  annotations:
+    policies.kyverno.io/title: Disallow NodePort Services
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Service
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: validate-nodeport
+    match:
+      any:
+      - resources:
+          kinds:
+          - Service
+    validate:
+      message: "Service type NodePort is not allowed. Use LoadBalancer or ClusterIP."
+      pattern:
+        spec:
+          type: "!NodePort"
+
+---
+# Require Ingress TLS
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-ingress-tls
+  annotations:
+    policies.kyverno.io/title: Require Ingress TLS
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Ingress
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: validate-tls
+    match:
+      any:
+      - resources:
+          kinds:
+          - Ingress
+    validate:
+      message: "Ingress must have TLS configured."
+      pattern:
+        spec:
+          tls:
+          - secretName: "?*"
+
+---
+# Restrict Cluster-Admin Bindings
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-clusteradmin
+  annotations:
+    policies.kyverno.io/title: Restrict Cluster-Admin Bindings
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: ClusterRoleBinding
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  - name: clusteradmin-bindings
+    match:
+      any:
+      - resources:
+          kinds:
+          - ClusterRoleBinding
+    validate:
+      message: "cluster-admin role should be used sparingly and requires approval."
+      deny:
+        conditions:
+          all:
+          - key: "{{ request.object.roleRef.name }}"
+            operator: Equals
+            value: cluster-admin
+          - key: "{{ request.object.metadata.annotations.approved || '' }}"
+            operator: NotEquals
+            value: "true"

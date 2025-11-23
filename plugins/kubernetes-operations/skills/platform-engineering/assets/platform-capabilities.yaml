@@ -1,0 +1,780 @@
+# Platform Capabilities Configuration
+# Defines all self-service capabilities provided by the platform
+
+---
+# Capability: CI/CD Pipeline
+capability:
+  id: cicd-pipeline
+  name: CI/CD Pipeline
+  category: deployment
+  description: |
+    Automated continuous integration and deployment pipelines for all services.
+    Includes testing, security scanning, building, and deployment to all environments.
+
+  # How developers interact with this capability
+  interface:
+    primary: automatic  # Configured via git push
+    secondary: backstage-ui  # View status in Backstage
+    api: github-actions-api
+    cli: gh-cli
+
+  # Developer experience
+  developer_experience:
+    activation: automatic  # Auto-configured on service creation
+    provision_time: instant  # Already configured
+    self_service: true
+    approval_required: false
+    learning_curve: minimal
+    documentation: https://docs.company.com/cicd
+
+  # What's included
+  features:
+    - name: Automated Testing
+      description: Unit, integration, and E2E tests on every commit
+    - name: Security Scanning
+      description: SAST, DAST, dependency scanning, container scanning
+    - name: Code Quality
+      description: Linting, formatting, code coverage
+    - name: Container Build
+      description: Multi-stage Docker builds with caching
+    - name: Multi-Environment Deploy
+      description: Dev, staging, production with promotion workflow
+    - name: Preview Environments
+      description: Ephemeral environments for every PR
+    - name: Rollback
+      description: One-click rollback to previous version
+
+  # Implementation details
+  implementation:
+    orchestrator: github-actions
+    components:
+      - github-actions
+      - argocd
+      - kaniko
+      - trivy
+      - snyk
+      - sonarqube
+    configuration: gitops
+    code_location: .github/workflows/
+
+  # Governance and policies
+  governance:
+    policies:
+      - require-tests: Tests must pass before deploy
+      - require-security-scan: No critical vulnerabilities
+      - require-code-review: At least 1 approval
+      - branch-protection: Main branch protected
+    compliance:
+      - audit-trail: All deployments logged
+      - change-tracking: Git history provides audit
+    cost_controls:
+      - concurrent-jobs: max 10
+      - job-timeout: max 30min
+
+  # Operations and monitoring
+  operations:
+    sla:
+      uptime: 99.9%
+      pipeline-duration: "< 10 minutes"
+      support-response: "< 2 hours"
+    monitoring:
+      metrics:
+        - pipeline-success-rate
+        - pipeline-duration
+        - deployment-frequency
+        - lead-time-for-changes
+      alerts:
+        - pipeline-failure
+        - long-running-job
+        - quota-exceeded
+      dashboards:
+        - grafana: cicd-overview
+        - backstage: cicd-plugin
+
+  # Support and documentation
+  support:
+    primary_contact: platform-team
+    slack_channel: "#platform-cicd"
+    office_hours: "Tue/Thu 2-3pm PT"
+    runbooks: https://runbooks.company.com/cicd
+    escalation: platform-oncall
+
+---
+# Capability: Database Provisioning
+capability:
+  id: database-provisioning
+  name: Database Provisioning
+  category: data
+  description: |
+    Self-service database provisioning with production-ready configuration.
+    Supports PostgreSQL, MySQL, and MongoDB with automated backups, monitoring, and security.
+
+  interface:
+    primary: backstage-template  # Via service template or standalone
+    secondary: kubectl-crd  # Advanced users can use CRDs
+    api: platform-api-v1
+    cli: platform-cli
+
+  developer_experience:
+    activation: template-form  # Fill form, click provision
+    provision_time: "3-5 minutes"
+    self_service: true
+    approval_required: false  # Except for xlarge size
+    learning_curve: minimal
+    documentation: https://docs.company.com/databases
+
+  features:
+    - name: Multi-Engine Support
+      description: PostgreSQL 15, MySQL 8.0, MongoDB 6.0
+    - name: Multiple Sizes
+      description: Small, medium, large, xlarge (auto-scaling coming soon)
+    - name: Automated Backups
+      description: Daily backups, 30-day retention, point-in-time recovery
+    - name: High Availability
+      description: Multi-AZ deployment for production
+    - name: Encryption
+      description: At-rest and in-transit encryption
+    - name: Secret Management
+      description: Credentials stored in Vault, auto-injected
+    - name: Monitoring
+      description: Auto-generated Grafana dashboards and alerts
+    - name: Cost Tracking
+      description: Tagged for cost allocation per service/team
+
+  implementation:
+    orchestrator: crossplane
+    components:
+      - crossplane
+      - aws-rds
+      - cloudnative-pg  # For in-cluster Postgres
+      - external-secrets-operator
+      - vault
+      - prometheus
+      - grafana
+    configuration: gitops
+    code_location: crossplane-compositions/
+
+  # Resource sizing
+  sizing:
+    small:
+      aws: db.t3.small
+      azure: B_Gen5_1
+      gcp: db-f1-micro
+      storage: 20GB
+      connections: 100
+      monthly_cost: "$20"
+      use_case: Development, testing
+    medium:
+      aws: db.t3.medium
+      azure: GP_Gen5_2
+      gcp: db-n1-standard-2
+      storage: 100GB
+      connections: 500
+      monthly_cost: "$100"
+      use_case: Production (most services)
+    large:
+      aws: db.m5.large
+      azure: GP_Gen5_4
+      gcp: db-n1-standard-4
+      storage: 500GB
+      connections: 2000
+      monthly_cost: "$400"
+      use_case: High-traffic services
+    xlarge:
+      aws: db.m5.2xlarge
+      azure: GP_Gen5_8
+      gcp: db-n1-standard-8
+      storage: 1TB
+      connections: 5000
+      monthly_cost: "$800"
+      use_case: Critical, high-volume services
+      approval_required: true
+      approver: platform-lead
+
+  governance:
+    policies:
+      - enforce-backups: All databases must have backups
+      - require-encryption: Encryption at rest mandatory
+      - limit-public-access: No public internet access
+      - require-ssl: SSL/TLS required for connections
+      - enforce-version: Only supported versions
+    compliance:
+      - pci-dss: Encryption, backups, access controls
+      - soc2: Audit logging, access controls
+      - gdpr: Data residency controls, encryption
+    cost_controls:
+      - size-limits: Require approval for xlarge
+      - quota-per-team: Max 10 databases per team
+      - auto-shutdown-dev: Dev databases shut down overnight
+      - unused-database-alerts: Alert if no connections for 7 days
+
+  operations:
+    sla:
+      uptime: 99.95%  # Multi-AZ production
+      provision_time: "< 5 minutes"
+      backup_success_rate: 99.9%
+      support_response: "< 4 hours"
+    monitoring:
+      metrics:
+        - connection_count
+        - query_latency
+        - storage_usage
+        - cpu_utilization
+        - replica_lag
+        - backup_success
+      alerts:
+        - high-connections: "> 80% of max"
+        - high-latency: "p99 > 100ms"
+        - storage-full: "> 85% used"
+        - replica-lag: "> 1 minute"
+        - backup-failure: "Any backup failure"
+        - high-cpu: "> 80% for 10 min"
+      dashboards:
+        - grafana: database-overview
+        - grafana: database-instance-detail
+        - backstage: database-plugin
+
+  support:
+    primary_contact: platform-team
+    slack_channel: "#platform-databases"
+    office_hours: "Mon/Wed/Fri 2-3pm PT"
+    runbooks: https://runbooks.company.com/databases
+    escalation: platform-oncall
+    faq: https://docs.company.com/databases/faq
+
+---
+# Capability: Secrets Management
+capability:
+  id: secrets-management
+  name: Secrets Management
+  category: security
+  description: |
+    Secure secret storage and injection into workloads. Secrets stored in Vault,
+    automatically rotated, and injected into pods via External Secrets Operator.
+
+  interface:
+    primary: automatic  # Auto-configured for databases, caches, etc.
+    secondary: backstage-ui  # Manual secret creation
+    api: vault-api
+    cli: vault-cli
+
+  developer_experience:
+    activation: declarative  # Reference secret name in deployment
+    provision_time: instant
+    self_service: true
+    approval_required: false
+    learning_curve: minimal
+    documentation: https://docs.company.com/secrets
+
+  features:
+    - name: Secure Storage
+      description: All secrets stored encrypted in Vault
+    - name: Auto-Injection
+      description: Secrets automatically injected into pods
+    - name: Auto-Rotation
+      description: Database passwords rotated every 90 days
+    - name: Access Control
+      description: RBAC ensures secrets only accessible by authorized services
+    - name: Audit Logging
+      description: All secret access logged for compliance
+    - name: Multi-Environment
+      description: Separate secrets per environment
+    - name: Multiple Types
+      description: Database, API keys, certificates, generic secrets
+
+  implementation:
+    orchestrator: external-secrets-operator
+    components:
+      - hashicorp-vault
+      - external-secrets-operator
+      - cert-manager  # For certificates
+      - sealed-secrets  # For GitOps secrets
+    configuration: gitops
+    code_location: external-secrets/
+
+  # Secret types supported
+  secret_types:
+    - database:
+        fields: [host, port, username, password, connection-string]
+        rotation: 90-days
+        auto_generated: true
+    - api-key:
+        fields: [key, secret]
+        rotation: manual
+        auto_generated: false
+    - certificate:
+        fields: [cert, key, ca]
+        rotation: 365-days
+        auto_generated: true
+    - generic:
+        fields: custom
+        rotation: manual
+        auto_generated: false
+
+  governance:
+    policies:
+      - no-plaintext-secrets: Secrets never in Git
+      - least-privilege: Services only access needed secrets
+      - rotation-required: Database secrets rotated every 90 days
+      - audit-logging: All access logged
+    compliance:
+      - pci-dss: Encryption, rotation, access controls
+      - soc2: Audit trail, access controls
+      - hipaa: Encryption, audit logging
+    cost_controls:
+      - secrets-per-service: Max 50 secrets per service
+
+  operations:
+    sla:
+      uptime: 99.99%
+      injection_time: "< 10 seconds"
+      rotation_success: 99.9%
+      support_response: "< 1 hour"  # Critical
+    monitoring:
+      metrics:
+        - secret_access_count
+        - rotation_success_rate
+        - expiring_secrets
+        - failed_injections
+      alerts:
+        - rotation-failure: Any rotation failure
+        - expiring-soon: Cert expires in < 30 days
+        - injection-failure: Secret injection failed
+        - unauthorized-access: Access denied events
+      dashboards:
+        - grafana: secrets-overview
+        - vault-ui: secrets-detail
+
+  support:
+    primary_contact: platform-security-team
+    slack_channel: "#platform-security"
+    office_hours: "Daily 10am-4pm PT"
+    runbooks: https://runbooks.company.com/secrets
+    escalation: security-oncall
+
+---
+# Capability: Observability Stack
+capability:
+  id: observability
+  name: Observability Stack
+  category: monitoring
+  description: |
+    Comprehensive observability with metrics, logs, and traces.
+    Auto-instrumented for all services with pre-built dashboards and smart alerts.
+
+  interface:
+    primary: automatic  # Auto-configured for all services
+    secondary: grafana-ui  # View dashboards
+    api: prometheus-api
+    cli: promtool
+
+  developer_experience:
+    activation: automatic
+    provision_time: instant
+    self_service: true
+    approval_required: false
+    learning_curve: minimal
+    documentation: https://docs.company.com/observability
+
+  features:
+    - name: Metrics Collection
+      description: Prometheus scrapes all services automatically
+    - name: Logs Aggregation
+      description: Loki collects all pod logs
+    - name: Distributed Tracing
+      description: Tempo captures traces across services
+    - name: Auto-Dashboards
+      description: Grafana dashboards generated for every service
+    - name: Smart Alerts
+      description: Default alerts for error rate, latency, availability
+    - name: Log Search
+      description: LogQL queries in Grafana
+    - name: Trace Search
+      description: Find traces by service, endpoint, duration
+    - name: Service Map
+      description: Visualize service dependencies
+
+  implementation:
+    orchestrator: prometheus-operator
+    components:
+      - prometheus
+      - loki
+      - tempo
+      - grafana
+      - opentelemetry-collector
+      - jaeger  # Deprecated, migrating to Tempo
+    configuration: gitops
+    code_location: observability/
+
+  # Golden signals monitored
+  golden_signals:
+    - name: Latency
+      description: Response time (p50, p95, p99)
+      alert_threshold: "p99 > 1s"
+    - name: Traffic
+      description: Requests per second
+      alert_threshold: "Sudden drop > 50%"
+    - name: Errors
+      description: Error rate (4xx, 5xx)
+      alert_threshold: "> 5%"
+    - name: Saturation
+      description: Resource utilization (CPU, memory)
+      alert_threshold: "> 80%"
+
+  # Default dashboards created for every service
+  dashboards:
+    - service-overview:
+        panels:
+          - requests-per-second
+          - error-rate
+          - latency-percentiles
+          - active-connections
+    - resource-usage:
+        panels:
+          - cpu-usage
+          - memory-usage
+          - network-io
+          - disk-io
+    - database:
+        panels:
+          - connection-count
+          - query-latency
+          - storage-usage
+          - replica-lag
+
+  governance:
+    policies:
+      - require-metrics: All services must expose /metrics
+      - require-health-checks: /health and /ready endpoints
+      - structured-logging: JSON logs only
+      - trace-sampling: 1% in production, 100% in dev
+    compliance:
+      - audit-trail: All requests logged
+      - retention: Metrics 90 days, logs 30 days, traces 7 days
+    cost_controls:
+      - metric-cardinality: Max 1000 unique label combinations
+      - log-rate-limiting: Max 1000 logs/second per service
+      - trace-sampling: Adaptive sampling to control costs
+
+  operations:
+    sla:
+      uptime: 99.95%
+      query_latency: "< 1 second"
+      ingestion_lag: "< 30 seconds"
+      support_response: "< 2 hours"
+    monitoring:
+      metrics:
+        - ingestion_rate
+        - query_duration
+        - storage_usage
+        - alert_firing_count
+      alerts:
+        - prometheus-down: Prometheus instance down
+        - loki-down: Loki instance down
+        - high-ingestion: Ingestion rate > 10x normal
+        - storage-full: Storage > 85%
+      dashboards:
+        - grafana: observability-platform-health
+
+  support:
+    primary_contact: platform-sre-team
+    slack_channel: "#platform-observability"
+    office_hours: "Tue/Thu 11am-12pm PT"
+    runbooks: https://runbooks.company.com/observability
+    escalation: sre-oncall
+
+---
+# Capability: Preview Environments
+capability:
+  id: preview-environments
+  name: Preview Environments
+  category: deployment
+  description: |
+    Ephemeral preview environments for every pull request.
+    Automatically deployed, isolated, and cleaned up after PR merge.
+
+  interface:
+    primary: automatic  # Created on PR open
+    secondary: github-comments  # Commands via PR comments
+    api: argocd-api
+    cli: argocd-cli
+
+  developer_experience:
+    activation: automatic  # PR triggers creation
+    provision_time: "2-3 minutes"
+    self_service: true
+    approval_required: false
+    learning_curve: minimal
+    documentation: https://docs.company.com/preview-environments
+
+  features:
+    - name: Automatic Creation
+      description: Preview created automatically on PR open
+    - name: Isolated Namespace
+      description: Each PR gets its own Kubernetes namespace
+    - name: Unique URL
+      description: Accessible via pr-123.preview.company.com
+    - name: Auto-Update
+      description: Redeploys automatically on new commits
+    - name: Auto-Cleanup
+      description: Deleted after PR merge or 7 days of inactivity
+    - name: Resource Limits
+      description: Limited resources to control costs
+    - name: Test Data
+      description: Seeded with test data
+    - name: PR Comments
+      description: URL and status posted to PR
+
+  implementation:
+    orchestrator: argocd-applicationset
+    components:
+      - argocd
+      - github-webhook
+      - cert-manager  # For TLS certs
+      - external-dns  # For DNS records
+    configuration: gitops
+    code_location: argocd-applicationsets/
+
+  # Resource limits for preview environments
+  resource_limits:
+    cpu: 500m
+    memory: 512Mi
+    storage: 1Gi
+    replicas: 1
+    max_concurrent: 20  # Max 20 preview envs per repo
+
+  # Lifecycle management
+  lifecycle:
+    creation: on-pr-open
+    update: on-new-commit
+    deletion:
+      - on-pr-merge: immediate
+      - on-pr-close: immediate
+      - on-inactivity: after 7 days
+    commands:
+      - /platform refresh-preview: Redeploy
+      - /platform delete-preview: Delete immediately
+      - /platform preview-logs: Show logs
+
+  governance:
+    policies:
+      - limit-per-repo: Max 20 concurrent previews
+      - ttl-enforcement: Delete after 7 days
+      - resource-quotas: Limited CPU/memory
+      - network-isolation: Cannot access production
+    compliance:
+      - no-production-data: Only test data allowed
+      - audit-trail: All previews logged
+    cost_controls:
+      - resource-limits: Prevent runaway costs
+      - auto-cleanup: Delete unused environments
+      - spot-instances: Use spot instances where possible
+
+  operations:
+    sla:
+      uptime: 99%  # Best effort
+      creation_time: "< 3 minutes"
+      update_time: "< 2 minutes"
+      support_response: "< 4 hours"
+    monitoring:
+      metrics:
+        - active_preview_count
+        - creation_duration
+        - success_rate
+        - resource_usage
+      alerts:
+        - creation-failure: Preview creation failed
+        - quota-exceeded: Too many previews
+        - high-cost: Preview costs > $500/month
+      dashboards:
+        - grafana: preview-environments-overview
+
+  support:
+    primary_contact: platform-team
+    slack_channel: "#platform-preview-envs"
+    office_hours: "Wed 2-3pm PT"
+    runbooks: https://runbooks.company.com/preview-environments
+    escalation: platform-oncall
+
+---
+# Capability: Cost Management
+capability:
+  id: cost-management
+  name: Cost Management
+  category: finops
+  description: |
+    Cost visibility and optimization for all platform resources.
+    Real-time cost tracking per service, team, and environment with budget alerts.
+
+  interface:
+    primary: grafana-dashboard  # View cost dashboards
+    secondary: backstage-ui  # Cost info in catalog
+    api: kubecost-api
+    cli: kubecost-cli
+
+  developer_experience:
+    activation: automatic  # All resources tagged
+    provision_time: instant
+    self_service: true
+    approval_required: false
+    learning_curve: minimal
+    documentation: https://docs.company.com/cost-management
+
+  features:
+    - name: Cost Visibility
+      description: Real-time cost per service, team, environment
+    - name: Budget Alerts
+      description: Alert when team exceeds monthly budget
+    - name: Cost Trends
+      description: Track cost over time
+    - name: Recommendations
+      description: Right-sizing and optimization suggestions
+    - name: Showback/Chargeback
+      description: Monthly reports per team
+    - name: Idle Resources
+      description: Detect and alert on unused resources
+    - name: Spot Instance Savings
+      description: Automatic spot instance usage
+
+  implementation:
+    orchestrator: kubecost
+    components:
+      - kubecost
+      - prometheus
+      - grafana
+      - aws-cost-explorer
+      - cloud-provider-billing-apis
+    configuration: terraform
+    code_location: cost-management/
+
+  # Cost allocation tags
+  cost_allocation:
+    required_tags:
+      - service: Service name
+      - owner: Team name
+      - environment: dev/staging/production
+      - cost-center: Finance cost center
+    optional_tags:
+      - project: Project identifier
+      - customer: For multi-tenant services
+
+  # Budget configuration
+  budgets:
+    per_team:
+      dev: "$1,000/month"
+      staging: "$2,000/month"
+      production: "$10,000/month"
+    alerts:
+      - threshold: 50%
+        notification: slack
+      - threshold: 80%
+        notification: slack + email
+      - threshold: 100%
+        notification: slack + email + pagerduty
+
+  governance:
+    policies:
+      - require-tagging: All resources must have owner tag
+      - budget-alerts: Alert at 80% of budget
+      - idle-resource-cleanup: Delete idle resources after 7 days
+    compliance:
+      - cost-tracking: All costs attributed to team/service
+      - audit-trail: Cost allocation decisions logged
+    cost_controls:
+      - auto-shutdown: Dev/staging resources shutdown overnight
+      - spot-instances: Use spot for non-production
+      - right-sizing: Auto-recommend smaller instance sizes
+      - idle-detection: Alert on resources with no traffic
+
+  operations:
+    sla:
+      uptime: 99%
+      data_freshness: "< 1 hour"
+      report_generation: "< 5 minutes"
+      support_response: "< 24 hours"
+    monitoring:
+      metrics:
+        - total_monthly_spend
+        - spend_by_team
+        - spend_by_service
+        - spend_by_environment
+        - idle_resource_cost
+        - savings_from_spot
+      alerts:
+        - budget-exceeded: Team over budget
+        - cost-spike: Spend increased > 50% day-over-day
+        - idle-resources: Resources idle > 7 days
+        - untagged-resources: Resources missing tags
+      dashboards:
+        - grafana: cost-overview
+        - grafana: cost-by-team
+        - grafana: cost-optimization
+
+  support:
+    primary_contact: platform-finops-team
+    slack_channel: "#platform-cost"
+    office_hours: "Fri 2-3pm PT"
+    runbooks: https://runbooks.company.com/cost-management
+    escalation: finops-lead
+
+---
+# Platform Capability Maturity Assessment
+
+platform_maturity_levels:
+  level_0_none:
+    description: Capability doesn't exist
+    characteristics:
+      - Manual, ticket-based
+      - Tribal knowledge
+      - Inconsistent results
+      - No documentation
+
+  level_1_manual:
+    description: Scripts exist but manual execution
+    characteristics:
+      - Submit ticket to ops
+      - Human performs steps
+      - Takes days
+      - Error-prone
+
+  level_2_automated:
+    description: Automated but requires knowledge
+    characteristics:
+      - Run scripts yourself
+      - Need technical knowledge
+      - Takes hours
+      - Some consistency
+
+  level_3_self_service:
+    description: Self-service portal
+    characteristics:
+      - Fill form in portal
+      - Automated provisioning
+      - Takes minutes
+      - Consistent, tested results
+
+  level_4_invisible:
+    description: Declared in code, platform handles it
+    characteristics:
+      - Declare in code
+      - Platform auto-provisions
+      - Instant
+      - Developer doesn't think about it
+
+# Current platform maturity per capability
+current_maturity:
+  cicd-pipeline: 4  # Invisible - auto-configured
+  database-provisioning: 3  # Self-service - portal form
+  secrets-management: 4  # Invisible - auto-configured
+  observability: 4  # Invisible - auto-instrumented
+  preview-environments: 4  # Invisible - automatic on PR
+  cost-management: 3  # Self-service - dashboards available
+
+# Target maturity (next 6 months)
+target_maturity:
+  cicd-pipeline: 4  # Maintain
+  database-provisioning: 4  # Make invisible via platform-as-code
+  secrets-management: 4  # Maintain
+  observability: 4  # Maintain
+  preview-environments: 4  # Maintain
+  cost-management: 4  # Auto-optimization recommendations

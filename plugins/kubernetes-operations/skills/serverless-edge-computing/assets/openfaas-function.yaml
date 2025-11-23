@@ -1,0 +1,657 @@
+# OpenFaaS Function Examples
+# Production-ready OpenFaaS function configurations for various use cases
+
+---
+# Example 1: Basic Python HTTP Function
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://127.0.0.1:8080
+
+functions:
+  hello-python:
+    lang: python3-http
+    handler: ./hello-python
+    image: myregistry.io/hello-python:latest
+
+    labels:
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "10"
+      com.openfaas.scale.factor: "2"
+      com.openfaas.scale.type: "rps"
+      com.openfaas.scale.target: "100"
+
+    environment:
+      read_timeout: "30s"
+      write_timeout: "30s"
+      exec_timeout: "30s"
+
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+---
+# Example 2: Production API Function with Database
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  user-api:
+    lang: python3-http
+    handler: ./user-api
+    image: myregistry.io/user-api:v1.2.0
+
+    # Resource limits
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+
+    # Environment variables
+    environment:
+      DATABASE_HOST: postgres.default.svc.cluster.local
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: users
+      CACHE_ENABLED: "true"
+      LOG_LEVEL: info
+      read_timeout: "60s"
+      write_timeout: "60s"
+      exec_timeout: "60s"
+
+    # Secrets (mounted at /var/openfaas/secrets/)
+    secrets:
+    - db-password
+    - jwt-secret
+
+    # Auto-scaling configuration
+    labels:
+      com.openfaas.scale.min: "2"
+      com.openfaas.scale.max: "50"
+      com.openfaas.scale.factor: "5"
+      com.openfaas.scale.type: "rps"
+      com.openfaas.scale.target: "200"
+      com.openfaas.scale.zero: "false"
+
+    # Annotations
+    annotations:
+      prometheus.io.scrape: "true"
+      prometheus.io.port: "8080"
+      prometheus.io.path: "/metrics"
+
+    # Health checks
+    readiness_probe:
+      initial_delay_seconds: 5
+      timeout_seconds: 3
+      period_seconds: 10
+
+    liveness_probe:
+      initial_delay_seconds: 15
+      timeout_seconds: 3
+      period_seconds: 10
+
+---
+# Example 3: Image Processing Function
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  image-processor:
+    lang: python3-http
+    handler: ./image-processor
+    image: myregistry.io/image-processor:latest
+
+    # Build arguments
+    build_args:
+      PYTHON_VERSION: "3.11"
+      ADDITIONAL_PACKAGE: "opencv-python pillow"
+
+    # Higher resource limits for image processing
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+
+    environment:
+      MAX_IMAGE_SIZE: "10485760"  # 10MB
+      OUTPUT_FORMAT: "JPEG"
+      QUALITY: "85"
+      read_timeout: "120s"
+      write_timeout: "120s"
+      exec_timeout: "120s"
+
+    # Capacity-based scaling (concurrent requests)
+    labels:
+      com.openfaas.scale.type: "capacity"
+      com.openfaas.scale.target: "5"
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "20"
+
+    secrets:
+    - s3-credentials
+
+---
+# Example 4: Node.js Express Function
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  api-gateway:
+    lang: node18-express
+    handler: ./api-gateway
+    image: myregistry.io/api-gateway:latest
+
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+
+    environment:
+      NODE_ENV: production
+      AUTH_SERVICE_URL: http://gateway.openfaas:8080/function/auth-service
+      USER_SERVICE_URL: http://gateway.openfaas:8080/function/user-service
+      read_timeout: "60s"
+      write_timeout: "60s"
+      exec_timeout: "60s"
+
+    labels:
+      com.openfaas.scale.min: "3"
+      com.openfaas.scale.max: "30"
+      com.openfaas.scale.type: "rps"
+      com.openfaas.scale.target: "500"
+
+    secrets:
+    - jwt-secret
+
+---
+# Example 5: Go Function with High Performance
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  data-transformer:
+    lang: golang-http
+    handler: ./data-transformer
+    image: myregistry.io/data-transformer:latest
+
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+
+    environment:
+      GOMAXPROCS: "4"
+      BUFFER_SIZE: "10000"
+      read_timeout: "30s"
+      write_timeout: "30s"
+      exec_timeout: "30s"
+
+    # High throughput configuration
+    labels:
+      com.openfaas.scale.type: "rps"
+      com.openfaas.scale.target: "1000"
+      com.openfaas.scale.min: "2"
+      com.openfaas.scale.max: "100"
+      com.openfaas.scale.factor: "10"
+
+---
+# Example 6: Async Function with Queue
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  email-sender:
+    lang: python3-http
+    handler: ./email-sender
+    image: myregistry.io/email-sender:latest
+
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+    environment:
+      SMTP_HOST: smtp.example.com
+      SMTP_PORT: "587"
+      read_timeout: "300s"  # Long timeout for async processing
+      write_timeout: "300s"
+      exec_timeout: "300s"
+
+    secrets:
+    - smtp-credentials
+
+    # Scale-to-zero for async workloads
+    labels:
+      com.openfaas.scale.zero: "true"
+      com.openfaas.scale.zero-duration: "10m"
+      com.openfaas.scale.min: "0"
+      com.openfaas.scale.max: "20"
+      com.openfaas.scale.type: "capacity"
+      com.openfaas.scale.target: "10"
+
+---
+# Example 7: ML Inference Function
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  sentiment-analysis:
+    lang: python3-http
+    handler: ./sentiment-analysis
+    image: myregistry.io/sentiment-analysis:latest
+
+    build_args:
+      PYTHON_VERSION: "3.11"
+
+    # High resource requirements for ML
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+
+    environment:
+      MODEL_PATH: "/models/bert-base-uncased"
+      BATCH_SIZE: "8"
+      USE_GPU: "false"
+      read_timeout: "120s"
+      write_timeout: "120s"
+      exec_timeout: "120s"
+
+    # Limited concurrency for resource-intensive operations
+    labels:
+      com.openfaas.scale.type: "capacity"
+      com.openfaas.scale.target: "5"
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "10"
+
+    # Node affinity for GPU nodes
+    constraints:
+    - "node.kubernetes.io/instance-type=g4dn.xlarge"
+
+---
+# Example 8: Scheduled Function (Cron)
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  data-cleanup:
+    lang: python3-http
+    handler: ./data-cleanup
+    image: myregistry.io/data-cleanup:latest
+
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+
+    environment:
+      DATABASE_URL: postgres://user@host/db
+      RETENTION_DAYS: "90"
+      read_timeout: "600s"  # 10 minutes
+      write_timeout: "600s"
+      exec_timeout: "600s"
+
+    secrets:
+    - db-password
+
+    # Scale to zero when not in use
+    labels:
+      com.openfaas.scale.zero: "true"
+      com.openfaas.scale.zero-duration: "5m"
+      com.openfaas.scale.min: "0"
+      com.openfaas.scale.max: "1"
+
+    annotations:
+      topic: cron-function
+      schedule: "0 2 * * *"  # Run at 2 AM daily
+
+---
+# Example 9: Multi-Function Stack
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  # Frontend API
+  frontend-api:
+    lang: node18-express
+    handler: ./frontend-api
+    image: myregistry.io/frontend-api:latest
+
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+
+    environment:
+      BACKEND_URL: http://gateway.openfaas:8080/function/backend-service
+      read_timeout: "60s"
+      write_timeout: "60s"
+      exec_timeout: "60s"
+
+    labels:
+      com.openfaas.scale.min: "3"
+      com.openfaas.scale.max: "20"
+      com.openfaas.scale.type: "rps"
+      com.openfaas.scale.target: "300"
+
+  # Backend Service
+  backend-service:
+    lang: golang-http
+    handler: ./backend-service
+    image: myregistry.io/backend-service:latest
+
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+
+    environment:
+      DATABASE_URL: postgres://host/db
+      read_timeout: "60s"
+      write_timeout: "60s"
+      exec_timeout: "60s"
+
+    secrets:
+    - db-password
+
+    labels:
+      com.openfaas.scale.min: "2"
+      com.openfaas.scale.max: "30"
+      com.openfaas.scale.type: "rps"
+      com.openfaas.scale.target: "500"
+
+  # Analytics Worker
+  analytics-worker:
+    lang: python3-http
+    handler: ./analytics-worker
+    image: myregistry.io/analytics-worker:latest
+
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123
+      read_timeout: "300s"
+      write_timeout: "300s"
+      exec_timeout: "300s"
+
+    labels:
+      com.openfaas.scale.zero: "true"
+      com.openfaas.scale.zero-duration: "10m"
+      com.openfaas.scale.min: "0"
+      com.openfaas.scale.max: "10"
+
+---
+# Example 10: Function with Init Container Pattern
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  app-with-init:
+    lang: python3-http
+    handler: ./app-with-init
+    image: myregistry.io/app-with-init:latest
+
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+
+    environment:
+      CONFIG_URL: http://config-service/config
+      read_timeout: "60s"
+      write_timeout: "60s"
+      exec_timeout: "60s"
+
+    labels:
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "20"
+
+    # Custom annotations for init container
+    annotations:
+      com.openfaas.ready.http.path: "/health"
+      com.openfaas.ready.http.initialDelaySeconds: "10"
+
+---
+# Example 11: Function with Environment File
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  env-config-function:
+    lang: python3-http
+    handler: ./env-config-function
+    image: myregistry.io/env-config-function:latest
+
+    # Load environment from file
+    environment_file:
+    - database.env
+    - redis.env
+
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+    labels:
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "10"
+
+---
+# Example 12: Private Function (Internal Only)
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  internal-processor:
+    lang: golang-http
+    handler: ./internal-processor
+    image: myregistry.io/internal-processor:latest
+
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+
+    environment:
+      read_timeout: "30s"
+      write_timeout: "30s"
+      exec_timeout: "30s"
+
+    labels:
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "10"
+
+    # Network policy for internal access only
+    annotations:
+      com.openfaas.function.type: "internal"
+
+---
+# Example 13: Function with Custom Metrics
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  metrics-function:
+    lang: python3-http
+    handler: ./metrics-function
+    image: myregistry.io/metrics-function:latest
+
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+    environment:
+      ENABLE_METRICS: "true"
+      METRICS_PORT: "9090"
+      read_timeout: "30s"
+      write_timeout: "30s"
+      exec_timeout: "30s"
+
+    labels:
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "20"
+
+    # Prometheus scraping annotations
+    annotations:
+      prometheus.io.scrape: "true"
+      prometheus.io.port: "8080"
+      prometheus.io.path: "/metrics"
+
+---
+# Example 14: Function with Volume Mount
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  file-processor:
+    lang: python3-http
+    handler: ./file-processor
+    image: myregistry.io/file-processor:latest
+
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+
+    environment:
+      DATA_PATH: "/data"
+      read_timeout: "120s"
+      write_timeout: "120s"
+      exec_timeout: "120s"
+
+    labels:
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "10"
+
+    # Custom annotation for volume mount
+    annotations:
+      com.openfaas.volumes: "data-volume:/data"
+
+---
+# Example 15: Function with Affinity Rules
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  regional-function:
+    lang: python3-http
+    handler: ./regional-function
+    image: myregistry.io/regional-function:latest
+
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+
+    environment:
+      REGION: "us-east-1"
+      read_timeout: "60s"
+      write_timeout: "60s"
+      exec_timeout: "60s"
+
+    labels:
+      com.openfaas.scale.min: "2"
+      com.openfaas.scale.max: "20"
+
+    # Node constraints
+    constraints:
+    - "node.kubernetes.io/instance-type=c5.large"
+    - "topology.kubernetes.io/zone=us-east-1a"
+
+---
+# Example 16: Function with CPU-based Scaling
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://gateway.openfaas:8080
+
+functions:
+  cpu-intensive:
+    lang: golang-http
+    handler: ./cpu-intensive
+    image: myregistry.io/cpu-intensive:latest
+
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+    requests:
+      cpu: "1000m"
+      memory: "1Gi"
+
+    environment:
+      read_timeout: "120s"
+      write_timeout: "120s"
+      exec_timeout: "120s"
+
+    # CPU-based auto-scaling
+    labels:
+      com.openfaas.scale.type: "cpu"
+      com.openfaas.scale.target: "80"  # 80% CPU
+      com.openfaas.scale.min: "1"
+      com.openfaas.scale.max: "50"

@@ -1,0 +1,745 @@
+# Production-Ready Istio VirtualService Examples
+# Comprehensive traffic management patterns for microservices
+
+---
+# Example 1: Basic Canary Deployment with Progressive Traffic Shift
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-canary
+  namespace: production
+  labels:
+    app: api-service
+    version: canary
+spec:
+  hosts:
+  - api-service
+  - api.example.com
+  gateways:
+  - api-gateway
+  - mesh  # For internal traffic
+  http:
+  - match:
+    # Beta testers always go to canary
+    - headers:
+        x-user-group:
+          exact: "beta-tester"
+      uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-service
+        subset: v2-canary
+        port:
+          number: 8080
+      headers:
+        response:
+          add:
+            x-served-by: "canary"
+
+  # Production traffic split (90% v1, 10% v2)
+  - match:
+    - uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-service
+        subset: v1-stable
+        port:
+          number: 8080
+      weight: 90
+      headers:
+        response:
+          add:
+            x-served-by: "stable"
+    - destination:
+        host: api-service
+        subset: v2-canary
+        port:
+          number: 8080
+      weight: 10
+      headers:
+        response:
+          add:
+            x-served-by: "canary"
+
+    # Request timeout
+    timeout: 10s
+
+    # Retry policy
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+      retryOn: 5xx,reset,connect-failure,refused-stream
+
+    # Fault injection for testing (disabled in production)
+    # fault:
+    #   delay:
+    #     percentage:
+    #       value: 0.1
+    #     fixedDelay: 1s
+
+  # Health check endpoint (no retry, short timeout)
+  - match:
+    - uri:
+        exact: "/health"
+    route:
+    - destination:
+        host: api-service
+        subset: v1-stable
+    timeout: 1s
+    retries:
+      attempts: 0
+
+---
+# Example 2: A/B Testing with Header-Based Routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: frontend-ab-test
+  namespace: production
+spec:
+  hosts:
+  - frontend-service
+  - www.example.com
+  gateways:
+  - frontend-gateway
+  - mesh
+  http:
+  # Mobile users (version B)
+  - match:
+    - headers:
+        user-agent:
+          regex: ".*(Android|iPhone|iPad).*"
+    route:
+    - destination:
+        host: frontend-service
+        subset: version-b
+      headers:
+        response:
+          add:
+            x-variant: "mobile-optimized"
+
+  # Desktop users (version A)
+  - match:
+    - headers:
+        user-agent:
+          regex: "^(?!.*(Android|iPhone|iPad)).*"
+    route:
+    - destination:
+        host: frontend-service
+        subset: version-a
+      headers:
+        response:
+          add:
+            x-variant: "desktop"
+
+  # Default route (50/50 split for unmatched)
+  - route:
+    - destination:
+        host: frontend-service
+        subset: version-a
+      weight: 50
+    - destination:
+        host: frontend-service
+        subset: version-b
+      weight: 50
+
+---
+# Example 3: Advanced Retry and Timeout Configuration
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: payment-service
+  namespace: production
+spec:
+  hosts:
+  - payment-service
+  http:
+  # Payment processing - no retries, long timeout
+  - match:
+    - uri:
+        prefix: "/api/payment/process"
+      method:
+        exact: POST
+    route:
+    - destination:
+        host: payment-service
+        port:
+          number: 8080
+    timeout: 30s
+    retries:
+      attempts: 0  # No retries for payment processing
+
+  # Payment status check - aggressive retries
+  - match:
+    - uri:
+        prefix: "/api/payment/status"
+      method:
+        exact: GET
+    route:
+    - destination:
+        host: payment-service
+        port:
+          number: 8080
+    timeout: 5s
+    retries:
+      attempts: 5
+      perTryTimeout: 1s
+      retryOn: 5xx,reset,connect-failure,refused-stream,retriable-status-codes
+      retryRemoteLocalities: true
+
+  # Default - moderate timeout and retries
+  - route:
+    - destination:
+        host: payment-service
+        port:
+          number: 8080
+    timeout: 10s
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+      retryOn: 5xx,reset,connect-failure
+
+---
+# Example 4: Traffic Mirroring (Shadow Traffic)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-mirror
+  namespace: production
+spec:
+  hosts:
+  - api-service
+  http:
+  - match:
+    - uri:
+        prefix: "/api"
+    route:
+    # All traffic to stable version
+    - destination:
+        host: api-service
+        subset: v1-stable
+      weight: 100
+
+    # Mirror 10% of traffic to v2 for testing
+    mirror:
+      host: api-service
+      subset: v2-shadow
+    mirrorPercentage:
+      value: 10.0
+
+    # Mirror responses are discarded
+    # Original request/response unaffected
+
+    timeout: 10s
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+
+---
+# Example 5: Multi-Version with Locality-Based Routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: global-api
+  namespace: production
+spec:
+  hosts:
+  - api-service.production.svc.cluster.local
+  http:
+  # Region-specific routing based on custom header
+  - match:
+    - headers:
+        x-region:
+          exact: "us-west"
+    route:
+    - destination:
+        host: api-service
+        subset: us-west
+        port:
+          number: 8080
+
+  - match:
+    - headers:
+        x-region:
+          exact: "us-east"
+    route:
+    - destination:
+        host: api-service
+        subset: us-east
+        port:
+          number: 8080
+
+  # Default - intelligent routing based on locality
+  - route:
+    - destination:
+        host: api-service
+        port:
+          number: 8080
+
+---
+# Example 6: Circuit Breaking with Fault Injection
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-fault-injection
+  namespace: staging  # For staging/testing only
+spec:
+  hosts:
+  - api-service
+  http:
+  - match:
+    - uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-service
+        subset: v1
+
+    # Fault injection for chaos testing
+    fault:
+      # Inject 5s delay for 1% of requests
+      delay:
+        percentage:
+          value: 1.0
+        fixedDelay: 5s
+
+      # Abort 0.5% of requests with 503
+      abort:
+        percentage:
+          value: 0.5
+        httpStatus: 503
+
+    timeout: 10s
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+
+---
+# Example 7: URL Rewrite and Redirect
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-rewrite
+  namespace: production
+spec:
+  hosts:
+  - api.example.com
+  gateways:
+  - api-gateway
+  http:
+  # Redirect old API path to new path
+  - match:
+    - uri:
+        prefix: "/v1/api"
+    redirect:
+      uri: "/v2/api"
+      authority: api.example.com
+      redirectCode: 301
+
+  # Rewrite URI for backend service
+  - match:
+    - uri:
+        prefix: "/external-api"
+    rewrite:
+      uri: "/api"
+    route:
+    - destination:
+        host: api-service
+        port:
+          number: 8080
+    headers:
+      request:
+        set:
+          x-forwarded-prefix: "/external-api"
+
+  # HTTPS redirect (from HTTP)
+  - match:
+    - port: 80
+    redirect:
+      port: 443
+      scheme: https
+      redirectCode: 301
+
+---
+# Example 8: WebSocket and gRPC Support
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: realtime-service
+  namespace: production
+spec:
+  hosts:
+  - realtime.example.com
+  gateways:
+  - realtime-gateway
+  http:
+  # WebSocket traffic
+  - match:
+    - uri:
+        prefix: "/ws"
+      headers:
+        upgrade:
+          exact: "websocket"
+    route:
+    - destination:
+        host: websocket-service
+        port:
+          number: 8080
+    timeout: 3600s  # Long timeout for WebSocket
+    retries:
+      attempts: 0  # No retries for WebSocket
+
+  # gRPC traffic
+  - match:
+    - uri:
+        prefix: "/grpc"
+      headers:
+        content-type:
+          prefix: "application/grpc"
+    route:
+    - destination:
+        host: grpc-service
+        port:
+          number: 9090
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 5s
+
+---
+# Example 9: CORS Configuration
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-cors
+  namespace: production
+spec:
+  hosts:
+  - api.example.com
+  gateways:
+  - api-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-service
+        port:
+          number: 8080
+
+    # CORS policy
+    corsPolicy:
+      allowOrigins:
+      - exact: "https://example.com"
+      - prefix: "https://*.example.com"
+      - regex: "https://.*\\.trusted-domain\\.com"
+      allowMethods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+      allowHeaders:
+      - authorization
+      - content-type
+      - x-requested-with
+      - x-api-key
+      exposeHeaders:
+      - x-custom-header
+      - x-request-id
+      maxAge: "24h"
+      allowCredentials: true
+
+---
+# Example 10: Multi-Cluster Traffic Routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-multicluster
+  namespace: production
+spec:
+  hosts:
+  - api-service.production.svc.cluster.local
+  http:
+  # Primary cluster gets 80%, secondary gets 20%
+  - match:
+    - uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-service.production.svc.cluster.local
+        subset: cluster-primary
+      weight: 80
+    - destination:
+        host: api-service.production.svc.cluster.local
+        subset: cluster-secondary
+      weight: 20
+
+    timeout: 10s
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+
+---
+# Example 11: Path-Based Routing to Different Services
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-gateway-routes
+  namespace: production
+spec:
+  hosts:
+  - api.example.com
+  gateways:
+  - api-gateway
+  http:
+  # Users service
+  - match:
+    - uri:
+        prefix: "/api/users"
+    route:
+    - destination:
+        host: user-service
+        port:
+          number: 8080
+    timeout: 5s
+
+  # Orders service
+  - match:
+    - uri:
+        prefix: "/api/orders"
+    route:
+    - destination:
+        host: order-service
+        port:
+          number: 8080
+    timeout: 10s
+
+  # Products service
+  - match:
+    - uri:
+        prefix: "/api/products"
+    route:
+    - destination:
+        host: product-service
+        port:
+          number: 8080
+    timeout: 3s
+
+  # Payments service (no retries)
+  - match:
+    - uri:
+        prefix: "/api/payments"
+    route:
+    - destination:
+        host: payment-service
+        port:
+          number: 8080
+    timeout: 30s
+    retries:
+      attempts: 0
+
+  # Default route (404)
+  - match:
+    - uri:
+        prefix: "/"
+    route:
+    - destination:
+        host: frontend-service
+        port:
+          number: 80
+
+---
+# Example 12: Header Manipulation
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-headers
+  namespace: production
+spec:
+  hosts:
+  - api-service
+  http:
+  - match:
+    - uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-service
+        port:
+          number: 8080
+
+    # Request header manipulation
+    headers:
+      request:
+        # Add headers
+        add:
+          x-forwarded-proto: "https"
+          x-custom-header: "value"
+        # Set headers (overwrite if exists)
+        set:
+          x-request-id: "%REQ_ID%"
+          x-envoy-attempt-count: "%UPSTREAM_REQUEST_ATTEMPT_COUNT%"
+        # Remove headers
+        remove:
+        - x-sensitive-header
+        - x-internal-token
+
+      # Response header manipulation
+      response:
+        add:
+          x-powered-by: "istio"
+          x-response-time: "%DURATION%"
+        set:
+          x-frame-options: "DENY"
+          x-content-type-options: "nosniff"
+        remove:
+        - x-internal-info
+
+---
+# Example 13: Query Parameter Routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-query-routing
+  namespace: production
+spec:
+  hosts:
+  - api-service
+  http:
+  # Beta version for users with beta parameter
+  - match:
+    - queryParams:
+        beta:
+          exact: "true"
+      uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-service
+        subset: v2-beta
+
+  # Version parameter routing
+  - match:
+    - queryParams:
+        version:
+          exact: "v2"
+    route:
+    - destination:
+        host: api-service
+        subset: v2
+
+  # Default to v1
+  - route:
+    - destination:
+        host: api-service
+        subset: v1
+
+---
+# Example 14: Service Mesh Gateway (Ingress)
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: api-gateway
+  namespace: production
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  # HTTPS with TLS
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: api-tls-cert
+      minProtocolVersion: TLSV1_2
+      cipherSuites:
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-RSA-AES256-GCM-SHA384
+    hosts:
+    - "api.example.com"
+    - "*.api.example.com"
+
+  # HTTP to HTTPS redirect
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "api.example.com"
+    - "*.api.example.com"
+    tls:
+      httpsRedirect: true
+
+---
+# Example 15: Complex Multi-Condition Routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-complex
+  namespace: production
+spec:
+  hosts:
+  - api-service
+  http:
+  # Premium users on mobile devices get optimized version
+  - match:
+    - headers:
+        x-user-tier:
+          exact: "premium"
+        user-agent:
+          regex: ".*(Android|iPhone).*"
+      uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-service
+        subset: mobile-optimized
+      headers:
+        response:
+          add:
+            x-variant: "mobile-premium"
+
+  # Premium users on desktop
+  - match:
+    - headers:
+        x-user-tier:
+          exact: "premium"
+      uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-service
+        subset: premium
+      headers:
+        response:
+          add:
+            x-variant: "premium"
+
+  # Free tier users (rate limited)
+  - match:
+    - headers:
+        x-user-tier:
+          exact: "free"
+      uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-service
+        subset: free-tier
+      headers:
+        response:
+          add:
+            x-variant: "free"
+            x-rate-limit: "100/hour"
+
+  # Default
+  - route:
+    - destination:
+        host: api-service
+        subset: standard

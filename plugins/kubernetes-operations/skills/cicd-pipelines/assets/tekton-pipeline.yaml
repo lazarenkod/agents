@@ -1,0 +1,920 @@
+# Complete Tekton CI/CD Pipeline Example
+# This example demonstrates a production-ready pipeline with:
+# - Git clone with authentication
+# - Parallel testing and security scans
+# - Container image build with Kaniko
+# - Multi-environment deployment
+# - Security scanning and signing
+# - Notifications
+
+---
+# Service Account with necessary permissions
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-pipeline-sa
+  namespace: ci-cd
+secrets:
+  - name: github-ssh-key
+  - name: docker-registry-creds
+  - name: cosign-keys
+
+---
+# RBAC for pipeline execution
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tekton-pipeline-role
+  namespace: ci-cd
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "secrets", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns", "taskruns"]
+    verbs: ["get", "list", "watch", "create"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-pipeline-rolebinding
+  namespace: ci-cd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-pipeline-role
+subjects:
+  - kind: ServiceAccount
+    name: tekton-pipeline-sa
+    namespace: ci-cd
+
+---
+# Cluster role for deployment across namespaces
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tekton-deploy-role
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "create", "update", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-deploy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-deploy-role
+subjects:
+  - kind: ServiceAccount
+    name: tekton-pipeline-sa
+    namespace: ci-cd
+
+---
+# PVC for workspace storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-cache
+  namespace: ci-cd
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 100Gi
+
+---
+# Task: Git Clone
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: git-clone
+  namespace: ci-cd
+  labels:
+    app.kubernetes.io/version: "1.0"
+spec:
+  description: Clone a git repository
+  params:
+    - name: url
+      description: Repository URL to clone
+      type: string
+    - name: revision
+      description: Revision to checkout (branch, tag, sha, ref)
+      type: string
+      default: main
+    - name: subdirectory
+      description: Subdirectory inside workspace to clone to
+      type: string
+      default: ""
+    - name: deleteExisting
+      description: Delete existing directory before cloning
+      type: string
+      default: "true"
+
+  workspaces:
+    - name: output
+      description: The git repo will be cloned here
+    - name: ssh-directory
+      description: SSH credentials
+      optional: true
+
+  results:
+    - name: commit
+      description: The commit SHA
+    - name: url
+      description: The URL that was cloned
+
+  steps:
+    - name: clone
+      image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.40.2
+      env:
+        - name: PARAM_URL
+          value: $(params.url)
+        - name: PARAM_REVISION
+          value: $(params.revision)
+        - name: PARAM_SUBDIRECTORY
+          value: $(params.subdirectory)
+        - name: PARAM_DELETE_EXISTING
+          value: $(params.deleteExisting)
+        - name: WORKSPACE_OUTPUT_PATH
+          value: $(workspaces.output.path)
+        - name: WORKSPACE_SSH_DIRECTORY_BOUND
+          value: $(workspaces.ssh-directory.bound)
+        - name: WORKSPACE_SSH_DIRECTORY_PATH
+          value: $(workspaces.ssh-directory.path)
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+
+        if [ "${WORKSPACE_SSH_DIRECTORY_BOUND}" = "true" ]; then
+          cp -R "${WORKSPACE_SSH_DIRECTORY_PATH}" "${HOME}"/.ssh
+          chmod 700 "${HOME}"/.ssh
+          chmod -R 400 "${HOME}"/.ssh/*
+        fi
+
+        CHECKOUT_DIR="${WORKSPACE_OUTPUT_PATH}/${PARAM_SUBDIRECTORY}"
+
+        if [ "${PARAM_DELETE_EXISTING}" = "true" ] && [ -d "${CHECKOUT_DIR}" ]; then
+          rm -rf "${CHECKOUT_DIR}"
+        fi
+
+        /ko-app/git-init \
+          -url="${PARAM_URL}" \
+          -revision="${PARAM_REVISION}" \
+          -path="${CHECKOUT_DIR}"
+
+        cd "${CHECKOUT_DIR}"
+        RESULT_SHA="$(git rev-parse HEAD)"
+        printf "%s" "${RESULT_SHA}" > "$(results.commit.path)"
+        printf "%s" "${PARAM_URL}" > "$(results.url.path)"
+
+---
+# Task: Run Tests
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: golang-test
+  namespace: ci-cd
+spec:
+  description: Run Go tests
+  params:
+    - name: package
+      description: Package to test
+      default: "./..."
+    - name: flags
+      description: Test flags
+      default: "-v -race -coverprofile=coverage.out"
+
+  workspaces:
+    - name: source
+
+  results:
+    - name: coverage
+      description: Test coverage percentage
+
+  steps:
+    - name: unit-test
+      image: golang:1.21
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env bash
+        set -e
+
+        echo "Running tests..."
+        go test $(params.flags) $(params.package)
+
+        echo "Calculating coverage..."
+        COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+        echo "Coverage: ${COVERAGE}"
+        echo -n "${COVERAGE}" | tee $(results.coverage.path)
+
+---
+# Task: Security Scan with Trivy
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: trivy-scan
+  namespace: ci-cd
+spec:
+  description: Scan source code for vulnerabilities
+  params:
+    - name: severity
+      description: Severity levels to scan for
+      default: "CRITICAL,HIGH"
+
+  workspaces:
+    - name: source
+
+  steps:
+    - name: scan
+      image: aquasec/trivy:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env sh
+        set -e
+
+        echo "Scanning for vulnerabilities..."
+        trivy fs \
+          --severity $(params.severity) \
+          --exit-code 1 \
+          --no-progress \
+          .
+
+        echo "✓ No critical vulnerabilities found"
+
+---
+# Task: Lint Code
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: golangci-lint
+  namespace: ci-cd
+spec:
+  description: Run golangci-lint
+  workspaces:
+    - name: source
+
+  steps:
+    - name: lint
+      image: golangci/golangci-lint:v1.54
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env sh
+        set -e
+
+        echo "Running linter..."
+        golangci-lint run --timeout=10m
+
+        echo "✓ Linting passed"
+
+---
+# Task: Build Image with Kaniko
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko-build
+  namespace: ci-cd
+spec:
+  description: Build and push container image with Kaniko
+  params:
+    - name: IMAGE
+      description: Name (reference) of the image to build
+    - name: DOCKERFILE
+      description: Path to the Dockerfile
+      default: ./Dockerfile
+    - name: CONTEXT
+      description: Build context
+      default: ./
+    - name: EXTRA_ARGS
+      type: array
+      default:
+        - --cache=true
+        - --cache-ttl=24h
+        - --compressed-caching=false
+
+  workspaces:
+    - name: source
+    - name: dockerconfig
+      mountPath: /kaniko/.docker
+
+  results:
+    - name: IMAGE_DIGEST
+      description: Digest of the image
+    - name: IMAGE_URL
+      description: URL of the image
+
+  steps:
+    - name: build-and-push
+      image: gcr.io/kaniko-project/executor:v1.11.0
+      workingDir: $(workspaces.source.path)
+      args:
+        - $(params.EXTRA_ARGS)
+        - --dockerfile=$(params.DOCKERFILE)
+        - --context=$(params.CONTEXT)
+        - --destination=$(params.IMAGE)
+        - --digest-file=$(results.IMAGE_DIGEST.path)
+        - --snapshot-mode=redo
+        - --use-new-run
+      securityContext:
+        runAsUser: 0
+
+    - name: write-url
+      image: bash:latest
+      script: |
+        #!/usr/bin/env bash
+        echo -n "$(params.IMAGE)" | tee $(results.IMAGE_URL.path)
+
+---
+# Task: Sign Image with Cosign
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cosign-sign
+  namespace: ci-cd
+spec:
+  description: Sign container image with Cosign
+  params:
+    - name: image
+      description: Image to sign
+
+  steps:
+    - name: sign
+      image: gcr.io/projectsigstore/cosign:v2.2.0
+      script: |
+        #!/usr/bin/env sh
+        set -e
+
+        echo "Signing image: $(params.image)"
+        cosign sign --key /secrets/cosign.key $(params.image) --yes
+
+        echo "✓ Image signed successfully"
+      env:
+        - name: COSIGN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cosign-keys
+              key: password
+      volumeMounts:
+        - name: cosign-keys
+          mountPath: /secrets
+          readOnly: true
+
+  volumes:
+    - name: cosign-keys
+      secret:
+        secretName: cosign-keys
+
+---
+# Task: Deploy to Kubernetes
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kubectl-deploy
+  namespace: ci-cd
+spec:
+  description: Deploy application to Kubernetes
+  params:
+    - name: namespace
+      description: Target namespace
+    - name: image
+      description: Container image to deploy
+    - name: app-name
+      description: Application name
+      default: myapp
+
+  steps:
+    - name: deploy
+      image: bitnami/kubectl:latest
+      script: |
+        #!/usr/bin/env bash
+        set -e
+
+        cat <<EOF | kubectl apply -f -
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: $(params.app-name)
+          namespace: $(params.namespace)
+          labels:
+            app: $(params.app-name)
+        spec:
+          replicas: 3
+          selector:
+            matchLabels:
+              app: $(params.app-name)
+          template:
+            metadata:
+              labels:
+                app: $(params.app-name)
+            spec:
+              containers:
+                - name: $(params.app-name)
+                  image: $(params.image)
+                  ports:
+                    - containerPort: 8080
+                      name: http
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: 8080
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /ready
+                      port: 8080
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                  resources:
+                    requests:
+                      memory: "256Mi"
+                      cpu: "100m"
+                    limits:
+                      memory: "512Mi"
+                      cpu: "500m"
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: $(params.app-name)
+          namespace: $(params.namespace)
+        spec:
+          selector:
+            app: $(params.app-name)
+          ports:
+            - protocol: TCP
+              port: 80
+              targetPort: 8080
+        EOF
+
+        echo "Waiting for rollout to complete..."
+        kubectl rollout status deployment/$(params.app-name) -n $(params.namespace) --timeout=5m
+
+        echo "✓ Deployment successful"
+
+---
+# Task: Run Integration Tests
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: integration-test
+  namespace: ci-cd
+spec:
+  description: Run integration tests against deployed application
+  params:
+    - name: namespace
+      description: Namespace where app is deployed
+    - name: app-name
+      description: Application name
+
+  workspaces:
+    - name: source
+
+  steps:
+    - name: test
+      image: golang:1.21
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env bash
+        set -e
+
+        export TEST_ENDPOINT="http://$(params.app-name).$(params.namespace).svc.cluster.local"
+
+        echo "Running integration tests against ${TEST_ENDPOINT}"
+        go test -v -tags=integration ./tests/integration/...
+
+        echo "✓ Integration tests passed"
+
+---
+# Task: Send Notification
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: send-notification
+  namespace: ci-cd
+spec:
+  description: Send Slack notification
+  params:
+    - name: webhook-url
+      description: Slack webhook URL
+    - name: message
+      description: Message to send
+    - name: status
+      description: Pipeline status
+      default: "success"
+
+  steps:
+    - name: notify
+      image: curlimages/curl:latest
+      script: |
+        #!/bin/sh
+        set -e
+
+        if [ "$(params.status)" = "success" ]; then
+          COLOR="#36a64f"
+          EMOJI=":white_check_mark:"
+        else
+          COLOR="#ff0000"
+          EMOJI=":x:"
+        fi
+
+        curl -X POST $(params.webhook-url) \
+          -H 'Content-Type: application/json' \
+          -d "{
+            \"attachments\": [{
+              \"color\": \"${COLOR}\",
+              \"blocks\": [{
+                \"type\": \"section\",
+                \"text\": {
+                  \"type\": \"mrkdwn\",
+                  \"text\": \"${EMOJI} *Pipeline Status: $(params.status)*\n$(params.message)\"
+                }
+              }]
+            }]
+          }"
+
+---
+# Main Pipeline
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: complete-cicd-pipeline
+  namespace: ci-cd
+  labels:
+    app.kubernetes.io/name: cicd-pipeline
+    app.kubernetes.io/version: "1.0"
+spec:
+  description: |
+    Complete CI/CD pipeline with testing, security scanning,
+    building, signing, and multi-environment deployment
+
+  params:
+    - name: git-url
+      type: string
+      description: Git repository URL
+    - name: git-revision
+      type: string
+      description: Git revision to build
+      default: main
+    - name: image-name
+      type: string
+      description: Container image name (without tag)
+    - name: deploy-to-prod
+      type: string
+      description: Deploy to production
+      default: "false"
+
+  workspaces:
+    - name: shared-data
+      description: Shared workspace for source code
+    - name: docker-credentials
+      description: Docker registry credentials
+    - name: git-credentials
+      description: Git SSH credentials
+
+  tasks:
+    # Stage 1: Clone repository
+    - name: fetch-source
+      taskRef:
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: shared-data
+        - name: ssh-directory
+          workspace: git-credentials
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+
+    # Stage 2: Parallel quality checks
+    - name: run-tests
+      runAfter: [fetch-source]
+      taskRef:
+        name: golang-test
+      workspaces:
+        - name: source
+          workspace: shared-data
+
+    - name: lint-code
+      runAfter: [fetch-source]
+      taskRef:
+        name: golangci-lint
+      workspaces:
+        - name: source
+          workspace: shared-data
+
+    - name: security-scan
+      runAfter: [fetch-source]
+      taskRef:
+        name: trivy-scan
+      workspaces:
+        - name: source
+          workspace: shared-data
+
+    # Stage 3: Build container image
+    - name: build-image
+      runAfter: [run-tests, lint-code, security-scan]
+      taskRef:
+        name: kaniko-build
+      workspaces:
+        - name: source
+          workspace: shared-data
+        - name: dockerconfig
+          workspace: docker-credentials
+      params:
+        - name: IMAGE
+          value: $(params.image-name):$(tasks.fetch-source.results.commit)
+        - name: DOCKERFILE
+          value: ./Dockerfile
+        - name: CONTEXT
+          value: ./
+
+    # Stage 4: Sign image
+    - name: sign-image
+      runAfter: [build-image]
+      taskRef:
+        name: cosign-sign
+      params:
+        - name: image
+          value: $(params.image-name):$(tasks.fetch-source.results.commit)
+
+    # Stage 5: Deploy to dev
+    - name: deploy-dev
+      runAfter: [sign-image]
+      taskRef:
+        name: kubectl-deploy
+      params:
+        - name: namespace
+          value: dev
+        - name: image
+          value: $(params.image-name):$(tasks.fetch-source.results.commit)
+        - name: app-name
+          value: myapp
+
+    # Stage 6: Integration tests on dev
+    - name: integration-test-dev
+      runAfter: [deploy-dev]
+      taskRef:
+        name: integration-test
+      workspaces:
+        - name: source
+          workspace: shared-data
+      params:
+        - name: namespace
+          value: dev
+        - name: app-name
+          value: myapp
+
+    # Stage 7: Deploy to staging
+    - name: deploy-staging
+      runAfter: [integration-test-dev]
+      taskRef:
+        name: kubectl-deploy
+      params:
+        - name: namespace
+          value: staging
+        - name: image
+          value: $(params.image-name):$(tasks.fetch-source.results.commit)
+        - name: app-name
+          value: myapp
+
+    # Stage 8: Integration tests on staging
+    - name: integration-test-staging
+      runAfter: [deploy-staging]
+      taskRef:
+        name: integration-test
+      workspaces:
+        - name: source
+          workspace: shared-data
+      params:
+        - name: namespace
+          value: staging
+        - name: app-name
+          value: myapp
+
+    # Stage 9: Conditional production deployment
+    - name: deploy-prod
+      runAfter: [integration-test-staging]
+      when:
+        - input: "$(params.deploy-to-prod)"
+          operator: in
+          values: ["true"]
+      taskRef:
+        name: kubectl-deploy
+      params:
+        - name: namespace
+          value: production
+        - name: image
+          value: $(params.image-name):$(tasks.fetch-source.results.commit)
+        - name: app-name
+          value: myapp
+
+  finally:
+    # Always send notification
+    - name: notify-completion
+      taskRef:
+        name: send-notification
+      params:
+        - name: webhook-url
+          value: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+        - name: message
+          value: |
+            Pipeline: $(context.pipeline.name)
+            Status: $(tasks.status)
+            Commit: $(tasks.fetch-source.results.commit)
+            Image: $(params.image-name):$(tasks.fetch-source.results.commit)
+        - name: status
+          value: $(tasks.status)
+
+---
+# PipelineRun example
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: cicd-run-
+  namespace: ci-cd
+spec:
+  serviceAccountName: tekton-pipeline-sa
+  pipelineRef:
+    name: complete-cicd-pipeline
+
+  params:
+    - name: git-url
+      value: git@github.com:example/myapp.git
+    - name: git-revision
+      value: main
+    - name: image-name
+      value: registry.example.com/myapp
+    - name: deploy-to-prod
+      value: "false"
+
+  workspaces:
+    - name: shared-data
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+          storageClassName: fast-ssd
+
+    - name: docker-credentials
+      secret:
+        secretName: docker-registry-creds
+
+    - name: git-credentials
+      secret:
+        secretName: github-ssh-key
+
+  podTemplate:
+    securityContext:
+      fsGroup: 65532
+    nodeSelector:
+      workload: ci
+
+---
+# EventListener for GitHub webhooks
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: github-listener
+  namespace: ci-cd
+spec:
+  serviceAccountName: tekton-pipeline-sa
+  triggers:
+    - name: github-push
+      interceptors:
+        - ref:
+            name: github
+          params:
+            - name: secretRef
+              value:
+                secretName: github-webhook-secret
+                secretKey: secret
+            - name: eventTypes
+              value: ["push"]
+        - ref:
+            name: cel
+          params:
+            - name: filter
+              value: body.ref.startsWith('refs/heads/main') || body.ref.startsWith('refs/heads/develop')
+      bindings:
+        - ref: github-push-binding
+      template:
+        ref: pipeline-trigger-template
+
+---
+# TriggerBinding
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: github-push-binding
+  namespace: ci-cd
+spec:
+  params:
+    - name: git-url
+      value: $(body.repository.clone_url)
+    - name: git-revision
+      value: $(body.after)
+    - name: git-repo-name
+      value: $(body.repository.name)
+
+---
+# TriggerTemplate
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: pipeline-trigger-template
+  namespace: ci-cd
+spec:
+  params:
+    - name: git-url
+    - name: git-revision
+    - name: git-repo-name
+
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: $(tt.params.git-repo-name)-
+        namespace: ci-cd
+      spec:
+        serviceAccountName: tekton-pipeline-sa
+        pipelineRef:
+          name: complete-cicd-pipeline
+        params:
+          - name: git-url
+            value: $(tt.params.git-url)
+          - name: git-revision
+            value: $(tt.params.git-revision)
+          - name: image-name
+            value: registry.example.com/$(tt.params.git-repo-name)
+          - name: deploy-to-prod
+            value: "false"
+        workspaces:
+          - name: shared-data
+            volumeClaimTemplate:
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: 10Gi
+          - name: docker-credentials
+            secret:
+              secretName: docker-registry-creds
+          - name: git-credentials
+            secret:
+              secretName: github-ssh-key
+
+---
+# Service for EventListener
+apiVersion: v1
+kind: Service
+metadata:
+  name: el-github-listener
+  namespace: ci-cd
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    eventlistener: github-listener
+
+---
+# Ingress for EventListener
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: github-webhook
+  namespace: ci-cd
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - webhooks.example.com
+      secretName: webhook-tls
+  rules:
+    - host: webhooks.example.com
+      http:
+        paths:
+          - path: /github
+            pathType: Prefix
+            backend:
+              service:
+                name: el-github-listener
+                port:
+                  number: 8080
