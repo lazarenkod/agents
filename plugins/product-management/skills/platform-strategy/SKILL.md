@@ -1,65 +1,64 @@
 ---
 name: platform-strategy
-description: Master platform product strategies from AWS, Google Cloud, Stripe, Twilio, and leading platform companies. Covers developer experience, API design, ecosystem growth, and marketplace dynamics. Use when building platforms, designing APIs, or planning ecosystem strategy.
+description: World-class platform product strategy covering ecosystem design, API/SDK quality, marketplace flywheels, pricing/packaging, and developer experience. Produces Russian markdown artifacts for every iteration.
 ---
 
 # Platform Strategy
 
-## When to Use This Skill
+Мирового уровня платформа-стратегия: flywheels, API/SDK качество, экосистема, маркетплейсы, монетизация.
 
-- Building developer platforms
-- Designing APIs and SDKs
-- Planning marketplace ecosystems
-- Optimizing developer experience
-- Growing platform adoption
-- Managing multi-sided networks
-- Platform monetization
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй каждый шаг работы в `outputs/product-management/skills/platform-strategy/{timestamp}_{кратко_о_задаче}.md`.
+- Структура: цель → контекст/акторы → фреймворки/анализ → решения → метрики → следующие шаги. Обновляй файл по мере итераций.
 
-## Core Frameworks
+## Когда использовать
+- Проектирование платформы, API/SDK, маркетплейса или двухсторонней сети
+- Планирование flywheel и стратегии экосистемы/партнёров
+- Улучшение Developer Experience и качества API
+- Ценообразование и упаковка (tiers, usage-based, rev-share)
+- Масштабирование governance и безопасности платформы
 
-### AWS Flywheel
-- More services → More developers → More usage → More revenue → (loop)
-- API-first, pay-as-you-go
-- Primitives over solutions
+## 3-итерационный цикл
+1) **Диагностика:** карта стейкхолдеров (продюсеры/консьюмеры/партнёры), текущее состояние flywheel, API scorecard, метрики (NSM, DX, GMV/Take Rate). Выяви бутылочные горлышки.
+2) **Дизайн:** варианты платформенной модели (marketplace, usage API, extensibility), стратегии ревеню/рев-шера, DX улучшения (time-to-first-call <5 мин), governance (версионирование, лимиты, безопасность). Применяй RICE/WSJF для приоритета.
+3) **Верификация:** пилоты с партнёрами, метрики DX (TTV, % успешных интеграций), рост экосистемы (# активных девов/приложений), финансовые метрики (take rate, attach, churn). Зафиксируй rollout и алерты.
 
-### Stripe Developer Experience
-- Best-in-class documentation
-- Simple but powerful APIs
-- Fast time-to-first-payment
-- Sandbox environment
+## Ключевые фреймворки
+- **Flywheel (AWS/Shopify):** предложение → разработчики → больше приложений/интеграций → ценность → спрос → предложение (цикл).
+- **API/SDK Scorecard:** время до первого запроса, стабильность, документация, версионирование, ошибки, observability.
+- **Platform Models:** marketplace (двусторонний), usage-based API, extensibility/плагины, data network effects.
+- **Economics:** take rate, attach rate, contribution margin, рев-шеры, subsidies, incentivation.
+- **Governance & Safety:** валидация приложений, безопасные скоупы, rate limits, политика данных/PII.
+- **DX Framework:** onboarding <5 минут, примеры/SDK, sandbox, линтеры/CLI, changelog/депрекейшн политика.
 
-### Shopify App Ecosystem
-- Two-sided marketplace
-- Network effects
-- Revenue share model (80/20)
+## Шаблон сохранения артефакта
+```markdown
+# {Задача платформы}
+**Дата:** {timestamp} | **Этап:** Диагностика/Дизайн/Верификация
 
-## Key Patterns
+## Контекст
+- Акторы: {producers/consumers/partners}
+- Ценности: {для каждой стороны}
+- NSM и метрики: GMV/Take Rate/DX (TTV, success rate), безопасность
 
-### Platform Models
-- **Freemium API**: Free tier → Paid plans
-- **Marketplace**: Two-sided, revenue share
-- **Multi-sided network**: AWS Marketplace
+## Анализ
+- Flywheel: текущее состояние, тормозящие звенья
+- API scorecard: время до первого запроса, ошибки, версия, доки
+- Экономика: pricing/packaging, рев-share, payback партнёров
 
-### Developer Experience
-- Documentation excellence
-- Fast onboarding (< 5 min)
-- SDKs and tools
-- Community support
+## Варианты решения (RICE/WSJF)
+| Вариант | Фокус | RICE/WSJF | Риски | Гарнды |
 
-### API Design
-- RESTful principles
-- Versioning strategies
-- Error handling
-- Rate limiting
+## План и rollout
+- Пилоты/беты, партнёры, KPI
+- Governance и безопасность (rate limits, scopes, ревью)
+- Timeline и алерты
 
-## Metrics
+## Следующие шаги
+- {3–5 действий с владельцами и сроками}
+```
 
-- Developer signups and retention
-- API call volume
-- Time to first API call
-- Ecosystem size (#apps, #partners)
-- Platform revenue
-
-## References
-
-See `/references/` and `/assets/` for detailed frameworks, case studies, and API design guides.
+## Assets и References
+- `/assets/` — API scorecard, platform brief, шаблон flywheel, дизайн рев-шера, DX checklist.
+- `/references/` — платформенные фреймворки, метрики экосистемы, лучшие практики версионирования и безопасности.

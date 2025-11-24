@@ -7,6 +7,16 @@ description: Master Claude SDK for automated product analytics, user behavior an
 
 Master the Claude SDK to build automated product analytics systems with real-time metric tracking, intelligent experimentation, and data-driven product decision making.
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/product-management/skills/sdk-product-analytics/{timestamp}_{кратко_о_задаче}.md` через Write tool (обновляй один файл по итерациям).
+- Обязательные блоки: контекст, данные/источники, метрики и пороги, дизайн анализа/эксперимента, выводы, следующие шаги.
+
+## 3-итерационный цикл
+1) **Диагностика:** цель анализа/метрик, схема событий, список источников/ограничений, определение NSM/инпут-метрик и guardrails. Сохранить базовый дашборд в markdown.
+2) **Дизайн и автоматизация:** скрипты/оркестрации SDK (WebFetch/Bash/Task/Write), расписание, контроль качества данных, схемы алертов. Добавить таблицу метрик и порогов.
+3) **Верификация и действия:** проверка результатов/статистики, сравнение с историей, решения (ship/iterate/stop), обновление репортов и задач. Закрепить выводы в том же файле.
+
 ## Language Support
 
 This skill documentation and all guidance adapt to user language:

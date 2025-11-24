@@ -7,6 +7,16 @@ description: Master product strategy frameworks, market opportunity sizing, comp
 
 Master product strategy frameworks, market opportunity sizing, competitive positioning, and roadmap planning to build products that achieve product-market fit and drive sustainable growth.
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй результаты в `outputs/product-management/skills/product-strategy/{timestamp}_{кратко_о_задаче}.md` через Write tool; обновляй один файл по мере итераций.
+- Формат: цель → контекст → анализ (фреймворки) → решения/приоритеты → метрики → риски/допущения → следующие шаги.
+
+## 3-итерационный цикл
+1) **Диагностика:** контекст, рынок, пользователь, цели/NSM, ключевые допущения, приоритет (RICE/WSJF). Сохранить черновой бриф.
+2) **Дизайн:** 2–3 стратегических варианта, фреймворки (JTBD, Kano, HEART, AARRR, Porter/3C/4P), сценарии roadmap, метрики успеха, риски/mitigation. Обновить файл таблицами решений.
+3) **Верификация:** критерии выбора, пилоты/тесты, GTM и метрики запуска, план мониторинга. Зафиксировать финальный план и TODO.
+
 ## Language Support
 
 This skill documentation and all guidance adapt to user language:

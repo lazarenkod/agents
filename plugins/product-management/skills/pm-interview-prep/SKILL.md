@@ -5,6 +5,16 @@ description: World-class interview preparation for CPO, Head of Product, and Pro
 
 # Product Manager Interview Preparation
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй результаты каждой сессии/симуляции в `outputs/product-management/skills/pm-interview-prep/{timestamp}_{тип_интервью}.md` (черновик → доработанный → финальный). Обновляй один файл по итерациям.
+- Структура: цель сессии → сценарий → ответы/заметки → разбор → действия для улучшения.
+
+## 3-итерационный цикл подготовки
+1) **Диагностика:** цели компаний/ролей, оценка текущих навыков, сбор списка историй STAR, базовые метрики (скорость/структура/чёткость). Сохранить стартовый план.
+2) **Практика:** провести симуляции по каждому треку (Product Sense, Execution, Technical/System Design, Behavioral/Leadership), записать ответы и обратную связь, отметить провалы по фреймворкам (CIRCLES/GAME/STAR/System design steps). Обновить тот же файл.
+3) **Шлифовка:** доработать истории и шаблоны, добавить примеры метрик/результатов, подготовить вопросы интервьюеру, собрать чек-лист дня интервью. Зафиксировать финальный конспект.
+
 ## When to Use This Skill
 
 - Preparing for PM, Senior PM, Director, VP, or CPO interviews
@@ -1099,20 +1109,19 @@ A: [Honest assessment of challenges]
 ## References
 
 See `/references/` folder for detailed guides:
-- `interview-frameworks.md` - Detailed framework explanations
-- `company-guides.md` - Company-specific deep dives
-- `question-bank.md` - 200+ practice questions
-- `star-stories-template.md` - How to write great STAR stories
-- `mock-interview-guide.md` - How to run effective mocks
+- `frameworks-quicksheet.md` — быстрые шпаргалки CIRCLES/GAME/STAR/System Design
+- `company-interview-focus.md` — ожидания топ-компаний (Google/Amazon/Microsoft/Meta/AI)
+- `interview-frameworks.md` — детальные описания интервью фреймворков
+- `star-stories-template.md` — примеры оформления историй STAR
+- `mock-interview-guide.md` — как проводить эффективные моки
 
 ## Assets
 
 See `/assets/` folder for practical materials:
-- `interview-prep-checklist.pdf` - 6-week preparation plan
-- `star-story-worksheet.pdf` - Template for writing stories
-- `product-design-template.pdf` - CIRCLES method template
-- `metrics-framework-template.pdf` - GAME method template
-- `system-design-template.pdf` - Technical interview template
+- `mock-interview-script.md` — сценарий мок-интервью и чек-листы обратной связи
+- `star-story-template.md` — формат для упаковки историй с цифрами
+- `interview-day-checklist.md` — подготовка и контрольный список дня интервью
+- `interview-prep-roadmap.md` — поэтапный план подготовки (6 недель)
 
 ---
 
