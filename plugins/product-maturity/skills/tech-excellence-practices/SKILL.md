@@ -5,6 +5,11 @@ description: World-class technical practices from AWS, Google, Amazon, Netflix, 
 
 # Tech Excellence Practices
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/product-maturity/skills/tech-excellence-practices/{timestamp}_{кратко}.md` через Write tool (обновляй один файл по итерациям).
+- Формат: цель/контекст → диагностика → решения/практики → метрики/алерты → план/rollout → TODO → изменения vs прошлой версии.
+
 ## When to Use This Skill
 
 - Implementing CI/CD pipelines and deployment automation
@@ -19,6 +24,70 @@ description: World-class technical practices from AWS, Google, Amazon, Netflix, 
 ## Overview
 
 Technical excellence practices proven at scale by the world's leading tech companies. These patterns enable teams to ship faster while maintaining reliability, scale to millions of users, and create sustainable engineering cultures.
+
+## 3-итерационный контур
+1) **Диагностика (2–4 ч):** метрики (DORA, SLO/SLA, дефекты/краши, debt), процессы (CI/CD, тесты, on-call, RCA), инструменты/долг. Черновой бриф + risk/decision log.
+2) **Дизайн (4–8 ч):** приоритет 3–5 практик (CI/CD, тестирование, observability, SRE, код-качество, платформа), цели/пороги, RICE/WSJF, план миграций/фич-флагов. Таблицы метрик/порогов/владельцев.
+3) **Верификация (1–2 ч):** go/no-go, rollout/canary, алерты, план обучения/коммуникаций, cadence (WBR/MBR), обновление логов/TODO/изменений.
+
+## Входы (собери до старта)
+- Текущие метрики: DORA, SLO/SLA, MTTR/MTBF, defect escape, crash/error rate, coverage, build/deploy times, debt ratio.
+- Практики/процессы: CI/CD шаги, тест-пирамида, feature flags, release/rollback, on-call/incident, RCA/post-mortems.
+- Инфраструктура/инструменты: observability (metrics/logs/traces), IaC, security/compliance ограничения.
+
+## Выходы (обязательно зафиксировать)
+- Карта текущего состояния и целевых практик, приоритетный план внедрения.
+- Метрики/пороги/алерты с владельцами, план релизов/фич-флагов/канареек/rollback.
+- План обучения/коммуникаций, cadence обзоров, TODO, decision/risk logs, изменения vs прошлой версии.
+
+## Метрики и алерты
+- **DORA:** deployment freq, lead time, MTTR, change fail rate.
+- **SRE/качество:** SLO/SLA, error budget burn, defect escape, crash/error rate, latency p50/p95/p99.
+- **CI/CD:** build/test/deploy time, flaky tests, coverage, rollback rate.
+- **Infra/стоимость:** cost-to-serve, ресурсная утилизация, debt ratio.
+- Алерты: превышение SLO/error budget, рост CFR/rollback, деградация build/test/deploy, рост флейков/дефектов.
+
+## Качество ответа (checklist)
+- Текущее/целевое состояние описано, приоритеты обоснованы (RICE/WSJF).
+- Метрики/пороги/алерты заданы, владельцы и сроки есть.
+- Rollout/rollback/канарейки/фич-флаги прописаны; обучающие/коммуникации учтены.
+- TODO/логи обновлены, изменения vs прошлой версии зафиксированы.
+
+## Red Flags
+- Нет SLO/алертов/error budget; метрики только “чувствуются”.
+- CI/CD без rollback/канареек, тесты без флейк-контроля; отсутствие observability.
+- Нет владельцев/дат/плана обучения; нет RCA/post-mortem практики.
+- Игнорирование cost-to-serve/латентности/надёжности при оптимизациях.
+
+## Паттерны (ориентиры)
+- **Google CI/CD:** hermetic builds, test selection, massive CI, trunk-based, <5 мин build.
+- **Amazon/AWS Pipelines:** IaC, автоматизированные проверки, сервис владеет своим пайплайном, безопасный rollout.
+- **SRE (Google):** SLO/Error Budgets, blameless postmortems, toil reduction, capacity planning.
+- **Netflix/Chaos:** chaos engineering, resiliency tests, fallback/kill switches.
+- **Quality:** тест-пирамида, контрактные тесты, линтеры/статический анализ, flaky quarantine, shift-left sec.
+- **Observability:** metrics/logs/traces, профайлинг, дашборды + алерты, golden signals.
+
+## Шаблон артефакта
+```markdown
+# План технического совершенства
+**Дата:** {timestamp} | **Этап:** Диагностика/Дизайн/Верификация
+
+## Контекст
+- Текущие метрики (DORA/SLO/качество/стоимость), проблемы/риски, цели
+
+## Диагностика
+- CI/CD, тесты, observability, SRE/on-call, архитектура, безопасность, платформа/инструменты
+
+## Приоритеты и план
+- 3–5 инициатив (CI/CD, тесты, SRE, observability, платформа)
+- Метрики/алерты, владельцы, сроки, пилоты/rollout, обучение/коммуникации
+
+## Риски/допущения
+- Зависимости/ограничения, пороги stop/go
+
+## TODO и изменения
+- Список действий, статусы, изменения vs предыдущей версии
+```
 
 ## CI/CD Excellence
 

@@ -5,6 +5,16 @@ description: Lead successful organizational change using Kotter's 8-Step Process
 
 # Change Management Excellence
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/world-class-leadership/skills/change-management/{timestamp}_{кратко}.md` через Write tool; обновляй один файл по итерациям.
+- Формат: цель/контекст → бриф → план изменений/коалиция/коммуникации → метрики/алерты → TODO → изменения vs прошлой версии.
+
+## 3-итерационный контур
+1) **Диагностика (1–2 ч):** почему меняемся, срочность/стейкхолдеры, риски/барьеры, желаемый исход. Черновой бриф + risk/decision log.
+2) **Дизайн (2–4 ч):** видение/история, коалиция, карта сопротивления, план коммуникаций, быстрые победы, ресурсы/барьеры, метрики/алерты. Таблицы стейкхолдеров/рисков/планов.
+3) **Верификация (1–2 ч):** go/no-go, контрольные точки, обучение/поддержка, алерты/эскалации, обновление логов и TODO.
+
 ## When to Use This Skill
 
 - Leading organizational transformation
@@ -84,6 +94,13 @@ description: Lead successful organizational change using Kotter's 8-Step Process
 - Empower teams to act on vision
 
 **Common Barriers**: Old processes, org structure, legacy systems, resistant leaders
+
+## Входы, выходы, метрики, red flags
+- **Входы:** цели/визия, стейкхолдер карта, барьеры/риски, ресурсы/бюджет, сроки, легал/комплаенс.
+- **Выходы:** change brief, коалиция/роли, коммуникационный план, карта сопротивления, быстрые победы, метрики/алерты, TODO/владельцы/сроки.
+- **Метрики:** adoption, % обученных, скорость перехода, engagement, NPS изменений, инциденты/стоп-пороги, текучесть/стресс.
+- **Алерты:** низкое участие/обучение, высокий негатив/утечки кадров, срыв быстрых побед, пробуксовка коммуникаций/обратной связи.
+- **Red Flags:** нет burning platform/стейкхолдер buy-in, нет ресурсов/коалиции, нет быстрых побед, слабая коммуникация, нет алертов/стоп-порогов.
 
 ### Step 6: Generate Short-Term Wins
 **Goal**: Create visible early successes

@@ -5,6 +5,11 @@ description: Comprehensive technical writing standards for creating clear, accur
 
 # Technical Writing Standards
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/tech-content-creator/skills/technical-writing-standards/{timestamp}_{кратко}.md` через Write tool; обновляй один файл по итерациям.
+- Формат: цель/аудитория → бриф → структура/стандарты → примеры/термины → вывод/CTA → TODO → изменения vs прошлой версии.
+
 ## When to Use This Skill
 
 - Drafting technical articles and blog posts
@@ -13,6 +18,11 @@ description: Comprehensive technical writing standards for creating clear, accur
 - Editing technical content for clarity and accuracy
 - Ensuring consistency in technical writing across content
 - Training new technical writers
+
+## 3-итерационный контур
+1) **Диагностика (1 ч):** аудитория/цель/канал, уровень сложности, бренд/тон, источники/версии, ограничения (NDA/PII). Черновой бриф + risk/decision log.
+2) **Дизайн (1–2 ч):** структура (SCQA/Problem-Solution/How-to), глоссарий/термины, примеры/код/скриншоты, форматирование (шаги/таблицы/блоки). Заполни чек-лист.
+3) **Верификация (0.5–1 ч):** фактчек/версии/термины, ясность/сжатие, читабельность, легал/бренд. Зафиксируй изменения и TODO.
 
 ## Core Writing Principles
 
@@ -38,6 +48,34 @@ description: Comprehensive technical writing standards for creating clear, accur
 - Test all code examples
 - Check version compatibility
 - Cite sources properly
+
+## Входы (собери до старта)
+- Аудитория (новички/эксперты), цель (обучить/референс/решить), канал (док/блог/API).
+- Источники фактов/примеров/кода, бренд/тон, версии, ограничения (NDA/PII/комплаенс).
+
+## Выходы (обязательно зафиксировать)
+- Структура/черновик, глоссарий, примеры/код/шаги, чек-лист качества.
+- Статусы фактчека/версий/легала/бренда, TODO с владельцами/датами, изменения vs прошлой версии.
+
+## Метрики и алерты
+- Ясность/успех: время до выполнения инструкции, кол-во support тикетов по теме, ошибки/правки после публикации.
+- Engagement: дочитывание, копирование примеров, возвраты.
+- Алерты: высокий bounce/неудачные шаги, жалобы на неточность/версии, несоответствие бренду/тону.
+
+## Качество ответа (checklist)
+- Структура ясна (SCQA/Problem-Solution/How-to), шаги проверены, примеры рабочие.
+- Терминология единообразна, глоссарий есть, ссылки/версии актуальны.
+- Факты/код проверены, тон/бренд соблюдены, CTA понятен.
+- TODO и изменения зафиксированы, логи обновлены.
+
+## Red Flags
+- Нет аудитории/цели; смешение уровней сложности; нет проверенных примеров.
+- Жаргон/абстракции без объяснений; несогласованные термины/версии.
+- Нет фактчека/легала; отсутствуют метрики/алерты; нет владельцев/сроков.
+
+## Шаблоны и справочники
+- Assets: `howto-template.md`, `api-doc-template.md`, `glossary-template.md`.
+- References: `writing-checklist.md`, `term-consistency-guide.md`.
 
 ## Language and Style Standards
 

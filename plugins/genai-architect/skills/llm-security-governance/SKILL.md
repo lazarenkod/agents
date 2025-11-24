@@ -5,6 +5,15 @@ description: Безопасность LLM систем - prompt injection defens
 
 # LLM Security & Governance
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/genai-architect/skills/llm-security-governance/{timestamp}_{кратко}.md` через Write tool; обновляй один файл по итерациям.
+- Формат: цель/контекст → риски/политики → контроли/guardrails → метрики/алерты → TODO → изменения vs прошлой версии.
+
+## 3-итерационный контур
+1) **Диагностика (1–2 ч):** политики/PII/регуляторика, модели/данные/логирование, угрозы (prompt injection, data exfil, jailbreak), текущее состояние контролей. Черновой бриф + risk log.
+2) **Дизайн (2–4 ч):** guardrails (policy/safety/PII), data handling, access/IAM, logging/retention, eval/red-team план, метрики/алерты, RACI. Таблица рисков/контролей/сроков.
+3) **Верификация (1–2 ч):** тесты/аудит/red-team, go/no-go, контрольные точки, обновить TODO/логи/изменения.
 Комплексное руководство по обеспечению безопасности LLM систем в production.
 
 ## Когда использовать

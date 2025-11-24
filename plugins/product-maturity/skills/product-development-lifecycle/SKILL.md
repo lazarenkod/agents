@@ -5,6 +5,11 @@ description: Complete product development lifecycle from ideation to launch used
 
 # Product Development Lifecycle
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/product-maturity/skills/product-development-lifecycle/{timestamp}_{кратко}.md` через Write tool (обновляй один файл по итерациям).
+- Формат: цель/контекст → диагностика → фаза/процессы → решения/приоритеты → метрики/алерты → TODO → изменения vs прошлой версии.
+
 ## When to Use This Skill
 
 - Establishing product development processes
@@ -19,6 +24,59 @@ description: Complete product development lifecycle from ideation to launch used
 ## Overview
 
 End-to-end product development lifecycle based on practices from the world's leading product companies. Covers discovery, planning, development, launch, and optimization phases with proven frameworks and techniques.
+
+## 3-итерационный контур
+1) **Диагностика (2–4 ч):** где находимся по фазам (discovery → build → launch → optimize), узкие места (скорость/качество/продукт-фит), риски/ограничения. Черновой бриф + decision/risk log.
+2) **Дизайн (4–8 ч):** целевая цепочка процессов (discovery, validation, delivery, release, growth), RICE/WSJF приоритеты, метрики и алерты по фазам, план запусков/фич-флагов/experiments. Таблицы фаз/метрик/ролей.
+3) **Верификация (1–2 ч):** критерии go/no-go, контрольные точки, ритм обзоров (WBR/MBR), план коммуникаций и обновления артефактов. TODO с владельцами/датами, фиксация изменений.
+
+## Входы (собери до старта)
+- Текущий процесс по фазам (discovery, design, build, launch, post-launch), артефакты (PRD/PRFAQ, дизайн, эксперименты).
+- Метрики: NSM, AARRR/HEART, cycle/lead time, defect/rollback, launch success, adoption/retention, DORA/SLO.
+- Ограничения: ресурсы, легал/комплаенс, данные/инструменты, зависимости.
+
+## Выходы (обязательно зафиксировать)
+- Карта процесса и узких мест, целевой lifecycle с ответственными.
+- Метрики/пороги/алерты по фазам, план экспериментов/фич-флагов/rollout.
+- План коммуникаций (дизайн/инж/маркетинг/поддержка), cadence обзоров.
+- Decision/Risk log, TODO и изменения vs прошлой версии.
+
+## Метрики и алерты (по фазам)
+- **Discovery/Validation:** # интервю/экспериментов, скорость инсайтов, % подтверждённых гипотез, время до проблем/solution fit.
+- **Build/Delivery:** lead/cycle time, defect escape rate, code review time, тестовое покрытие, стабильность окружений.
+- **Launch:** время до GA, rollback %, инциденты, конверсия/активация первой когорты, SLA/краши.
+- **Optimize/Growth:** adoption/usage, retention, NPS/CSAT, A/B uplift, CAC/LTV/payback, churn/ARPU.
+- Алерты: задержки фаз, рост дефектов/rollback, падение активации/retention, нарушение SLO.
+
+## Качество ответа (checklist)
+- Есть текущая карта фаз и узких мест; целевой процесс с ролями/метриками/алертами.
+- Определены пороги go/no-go по запуску, критерии качества и guardrails.
+- Эксперименты/фич-флаги/rollout описаны, коммуникации/ритм заданы.
+- TODO, владельцы, даты, обновлённые логи и изменения зафиксированы.
+
+## Red Flags
+- Нет чёткого входа/выхода фаз, нет критериев качества/launch readiness.
+- Нет экспериментов/валидации, решения принимаются без данных.
+- Нет алертов/guardrails, отсутствуют роли/владельцы процессов.
+- Нет пост-лаунч мониторинга и обратной связи в roadmap.
+
+## Плейбуки по фазам (используй как чек-лист)
+### Discovery/Validation
+- Цель/проблема/персона/JTBD; риски/допущения; критерии успеха.
+- Интервью/исследования, прототипы, эксперименты; метрики: скорость инсайтов, % подтверждённых гипотез.
+- Артефакты: PRFAQ/One-pager, решения go/stop, backlog гипотез.
+### Build/Delivery
+- Планирование/декомпозиция, дизайн/ревью, Definition of Ready/Done.
+- Тест-пирамида, CI/CD, feature flags, QA/automation, security/privacy.
+- Метрики: lead/cycle time, defect escape, coverage, flaky rate, build/deploy time.
+### Launch
+- Launch readiness: чек-листы качества, SLA/SLO, мониторинг/обсервабилити, support/enablement.
+- Rollout план: канарейки/стейджинг/GA, алерты/rollback, коммуникации (внутр/внеш).
+- Метрики: активация/конверсия первой когорты, ошибки/краши, latency, инциденты/rollback %.
+### Optimize/Growth
+- Аналитика/когорты/A/B, ретро и план улучшений, GTM/маркетинг/продуктовые эксперименты.
+- Метрики: adoption, retention, NPS/CSAT, revenue/ARPU/NRR, churn, payback.
+- Обновление roadmap и приоритетов на основе данных.
 
 ## Product Development Philosophy
 

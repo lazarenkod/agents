@@ -62,3 +62,54 @@ description: World-class platform product strategy covering ecosystem design, AP
 ## Assets и References
 - `/assets/` — API scorecard, platform brief, шаблон flywheel, дизайн рев-шера, DX checklist.
 - `/references/` — платформенные фреймворки, метрики экосистемы, лучшие практики версионирования и безопасности.
+
+## Подробные плейбуки (3 итерации)
+### Итерация 1 — Диагностика (1–2 часа)
+- Акторы (producers/consumers/partners), ценность, текущее состояние flywheel и узкие места.
+- API/SDK scorecard: time-to-first-call, стабильность, доки, версии, ошибки, DX/NPS.
+- Экономика: GMV/TPV, attach/take rate, partner margin, churn, cost-to-serve; риски/PII/регуляторика.
+- Артефакт: черновой platform brief + risk/decision log.
+### Итерация 2 — Дизайн (2–4 часа)
+- Модель: marketplace vs usage API vs extensibility; стимулы/субсидии, pricing/packaging, рев-шеры.
+- Flywheel план: предложение → разработчики → приложения → ценность → спрос; тормоза и гарнды.
+- Governance: версионирование/депрекейшн, лимиты, безопасность/PII, партнёрский онбординг/ревью.
+- DX: TTF call <5 мин, SDK/CLI, примеры, sandbox, changelog; observability/алерты.
+- Артефакт: platform brief, scorecard, DX checklist, план рев-шеров и governance.
+### Итерация 3 — Верификация/rollout (1–2 часа)
+- Пилоты/партнёры/маркетплейс лоты: KPI/пороги, алерты/стоп-условия, миграции/версии.
+- Ритм: WBR/MBR/QBR, обзор метрик/инцидентов, эскалации, roadmap изменений.
+- Обнови decision/risk logs, TODO с владельцами/датами, изменения vs прошлой версии.
+
+## Метрики и алерты
+- **Экосистема:** активные девы/приложения/интеграции, GMV/TPV, attach/take rate, churn партнёров.
+- **DX:** time-to-first-call, success rate интеграций, dev NPS/CSAT, тикеты/SLA.
+- **Надёжность/безопасность:** 4xx/5xx, latency p50/p95/p99, версии/миграции, инциденты/PII.
+- **Экономика:** partner margin, payback партнёров, рев-шеры/субсидии, cost-to-serve.
+- Алерты: деградация DX/ошибок/latency, срыв миграций, рост инцидентов/PII, падение attach/take rate.
+
+## Входы (собери до старта)
+- Текущее состояние API/SDK, метрики DX/ошибок, партнёрский портфель/маркетплейс, экономические показатели.
+- Ограничения: безопасность/PII, комплаенс/регуляторика, ресурсы, зависимость от версий/инфры.
+- Источники: dev опросы/NPS, логи ошибок, marketplace данные, конкурентные платформы.
+
+## Выходы (обязательно зафиксировать)
+- Platform brief с моделью/ценностью/акторами; scorecard и flywheel план.
+- Pricing/packaging/rev-share, governance/версии/лимиты, DX checklist.
+- План пилотов/партнёров/маркетплейса, KPI/алерты/ритм, TODO с владельцами/датами, обновлённые логи.
+
+## Источники данных и инструменты
+- Логи API/SDK, observability, dev NPS/support, marketplace аналитика, WebSearch/WebFetch (конкуренты/прайсинг).
+- Фреймворки: Flywheel, Two-sided networks, API lifecycle, DX scorecard, governance & safety.
+- Claude Agent SDK: Task (параллельный анализ), Write (артефакты), Bash (подсчёт метрик/ошибок).
+
+## Качество ответа (checklist)
+- Описаны акторы/ценность/модель, scorecard и flywheel с тормозами/гарндами.
+- DX/версии/безопасность/PII/лимиты учтены; pricing/рев-шеры/стимулы прописаны.
+- KPI/алерты/ритм и владельцы заданы; план пилотов/миграций есть.
+- Decision/risk logs обновлены; TODO и изменения зафиксированы.
+
+## Red Flags (осторожно)
+- Нет DX/scorecard или не измеряется time-to-first-call/ошибки.
+- Governance/версии/безопасность не определены; нет лимитов/эскалаций.
+- Модель/рев-шеры/стимулы не просчитаны; нет flywheel тормозов/гарнды.
+- Нет KPI/алертов/ритма; нет владельцев и плана пилотов/миграций.

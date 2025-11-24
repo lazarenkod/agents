@@ -7,6 +7,16 @@ description: FinOps для GenAI и LLM систем - оптимизация с
 
 Комплексные стратегии оптимизации затрат на GenAI и LLM inference без ущерба для качества и производительности.
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/genai-architect/skills/genai-cost-optimization/{timestamp}_{кратко}.md` через Write tool; обновляй один файл по итерациям.
+- Формат: цель/контекст → диагностика → сценарии оптимизации → метрики/алерты → план/политики → TODO → изменения vs прошлой версии.
+
+## 3-итерационный контур
+1) **Диагностика (1–2 ч):** профили запросов (tokens/latency/модель), $/req и $/user, контексты/кеши, нагрузки/спайки, SLAs по качеству/latency. Черновой бриф + risk/decision log.
+2) **Дизайн (2–4 ч):** сценарии оптимизации (prompt slim, caching, batching, distillation, smaller/cheaper модели, retrieval/filtering, adaptive routing), финмодель base/upside/downside, приоритеты (RICE/WSJF), метрики/алерты. Таблицы вариантов/экономии/рисков.
+3) **Верификация (1–2 ч):** выбранные меры, rollout/фич-флаги, алерты/пороги, контрольные точки, обновить TODO/логи/изменения.
+
 ## Когда использовать этот скилл
 
 - Высокие затраты на LLM inference
@@ -50,6 +60,34 @@ Operations:
 └─ Team overhead
 ```
 
+## Входы (собери до старта)
+- Токен-профили по маршрутам/фичам, $/req и $/user, модели/версии, длины промптов/ответов, кеши/батчинг.
+- Нагрузки/спайки, SLA по качеству/latency, бюджеты/лимиты, контракты/прайсинг, PII/регуляторика.
+
+## Выходы (обязательно зафиксировать)
+- План оптимизаций с оценкой экономии/рисков, финмодель (base/upside/downside).
+- Политики (кеш/контекст/макс токены/маршрутизация/квоты), метрики/алерты, TODO/владельцы/даты.
+- Decision/Risk log, изменения vs прошлой версии.
+
+## Метрики и алерты
+- Стоимость: $/req, $/user, $/feature, tokens/req, % кеш hit, batch efficiency.
+- Качество/latency: SLA после оптимизаций, error/timeout.
+- Использование моделей: доля traffic per model, success rate, fallback rate.
+- Алерты: рост $/req/tokens, падение качества/latency, кеш деградации, превышение квот.
+
+## Качество ответа (checklist)
+- Собраны профили/бюджеты/SLAs, есть несколько сценариев с оценкой экономии/рисков.
+- Метрики/алерты и политики заданы; владельцы/сроки/фич-флаги/rollout указаны.
+- План prompt/policy linting, кеш/батч/роутинг, decision/risk log обновлены.
+
+## Red Flags
+- Нет токен-профилей; “оптимизация” вслепую.
+- Один вариант (смена модели) без оценки качества/рисков.
+- Нет алертов/квот/политик; нет владельцев/дат; отсутствует rollback.
+
+## Шаблоны и справочники
+- Assets: `cost-optimization-playbook.md`, `fin-model-ai-template.md`, `policy-and-quotas.md`.
+- References: `cost-metrics-ai.md`, `optimization-techniques.md`, `routing-and-caching.md`.
 #### Pricing Models Comparison (as of 2024)
 
 | Provider/Model | Input (per 1M tokens) | Output (per 1M tokens) | Context | Notes |

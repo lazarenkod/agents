@@ -5,6 +5,11 @@ description: Build and scale high-performance teams using Google's Project Arist
 
 # High-Performance Teams
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/world-class-leadership/skills/high-performance-teams/{timestamp}_{кратко}.md` через Write tool; обновляй один файл по итерациям.
+- Формат: цель/контекст → диагностика → решения/паттерны → метрики/алерты → план/ритм → TODO → изменения vs прошлой версии.
+
 ## When to Use This Skill
 
 - Building new teams from scratch
@@ -32,6 +37,35 @@ description: Build and scale high-performance teams using Google's Project Arist
 - Actively invite participation and input
 - Respond positively to risk-taking and questions
 - No blame culture - focus on systems
+
+## 3-итерационный контур
+1) **Диагностика (1–2 ч):** состояние команды (psych safety/dependability/roles/meaning/impact), метрики (velocity/quality/attrition/NPS), узкие места и конфликты. Черновой бриф + risk/decision log.
+2) **Дизайн (2–4 ч):** паттерны (Aristotle + two-pizza + team topologies), цели/метрики/ритм (WBR/retro/1:1), роли/DRI, договорённости, эксперименты (ритуалы/процессы). Таблицы проблем/решений/метрик.
+3) **Верификация (1–2 ч):** план внедрения, алерты/стоп-пороги, коммуникации, обучение/коучинг, контрольные точки, обновление логов/TODO.
+
+## Входы (собери до старта)
+- Метрики: velocity/quality/defects, engagement/eNPS, attrition, нагрузка/пересечения, DORA/SLO (если релевантно).
+- Сигналы: конфликты, пропуски сроков, дублирование работ, жалобы на роли/контекст, ретро/1:1 инсайты.
+- Контекст: миссия/цели, зависимости, размер/структура (two-pizza?), состав/скиллы.
+
+## Выходы (обязательно зафиксировать)
+- План улучшения команды: цели, паттерны, метрики/алерты, ритм, роли/DRI, договорённости.
+- TODO/владельцы/сроки, обновлённые логи, изменения vs прошлой версии.
+
+## Метрики и алерты
+- Psych safety/engagement (опросы), скорость/качество (lead time/defect/rollback), ретро action rate, участие в ритуалах.
+- Attrition/overload, конфликт/эскалации, решение зависимостей.
+- Алерты: падение опросов/качества/velocity, рост дефектов/конфликтов, незакрытые action items.
+
+## Качество ответа (checklist)
+- Проблемы и цели команды сформулированы; паттерны/решения связаны с ними.
+- Метрики/алерты, ритм и владельцы заданы; роли/DRI/договорённости ясны.
+- План внедрения и контрольные точки есть; логи/TODO обновлены.
+
+## Red Flags
+- Нет psych safety/ритуалов, отсутствует ясность ролей/целей.
+- Проблемы не измеряются; нет метрик/алертов/ритма.
+- Нет владельцев/сроков/действий; нет связки с миссией/зависимостями.
 
 ### 2. Dependability
 **Definition**: Team members reliably complete quality work on time

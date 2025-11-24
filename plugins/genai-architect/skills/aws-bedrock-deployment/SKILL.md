@@ -7,6 +7,16 @@ description: AWS Bedrock production deployment - Provisioned Throughput, Knowled
 
 Полное руководство по production deployment на Amazon Bedrock с best practices для enterprise workloads.
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/genai-architect/skills/aws-bedrock-deployment/{timestamp}_{кратко}.md` через Write tool; обновляй один файл по итерациям.
+- Формат: цель/контекст → архитектура/конфиг → безопасность/стоимость → метрики/алерты → TODO → изменения vs прошлой версии.
+
+## 3-итерационный контур
+1) **Диагностика (1 ч):** цели/трафик/latency/стоимость, модели/версии, PII/регуляторика, текущий сетап. Черновой бриф + risk log.
+2) **Дизайн (2–3 ч):** выбор моделей/эндпоинтов, VPC/privatelink, IAM/политики, контроль контекста/tokens, кеш/батч/роутинг, observability, квоты/косты. План конфигурации/алертов.
+3) **Верификация (1–2 ч):** тесты (latency/load/safety), запуск/канареек, алерты/пороги, rollback/runbook, TODO/изменения.
+
 ## Когда использовать этот скилл
 
 - Deployment LLM на AWS Bedrock

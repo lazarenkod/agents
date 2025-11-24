@@ -5,6 +5,16 @@ description: Comprehensive enterprise sales methodologies including MEDDPICC, SP
 
 # Enterprise Sales Methodology
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/enterprise-sales/skills/enterprise-sales-methodology/{timestamp}_{кратко}.md` через Write tool; обновляй один файл по итерациям.
+- Формат: цель/сделка/стадия → диагностика (gap по MEDDPICC/методам) → план действий → метрики/алерты → TODO → изменения vs прошлой версии.
+
+## 3-итерационный контур
+1) **Диагностика (1–2 ч):** статус сделки, MEDDPICC/SPIN/Challenger заполнение, риски/блокеры, стейкхолдеры, compelling event. Черновой бриф + gap-лог.
+2) **Дизайн (2–3 ч):** план по каждому компоненту (Metrics/Eco Buyer/Decision/Champion/Competition), discovery вопросы, нужные артефакты (value calc, eval plan), коммуникации. Таблицы рисков/действий.
+3) **Верификация (1 ч):** критерии exit для стадии, алерты/пороги, следующий шаг/дата/владелец, обновление лога и TODO.
+
 ## When to Use This Skill
 
 - Qualifying complex enterprise opportunities
@@ -277,6 +287,30 @@ description: Comprehensive enterprise sales methodologies including MEDDPICC, SP
 6. **Compelling Event**: No urgency = no deal this quarter. Identify or create urgency.
 7. **Process Discipline**: Shortcuts in sales process lead to forecast misses and lost deals
 8. **MEDDPICC Every Deal**: Score every opportunity. If it's red, fix it or disqualify.
+
+## Входы (собери до старта)
+- Стадия сделки, контакт-лист (economic buyer/champion/coach/users), compelling event/тайминг.
+- Черновик MEDDPICC/Challenger/SPIN, риски/конкуренты, необходимые артефакты (value calc, security, legal, eval plan).
+
+## Выходы (обязательно зафиксировать)
+- Обновлённый MEDDPICC + план закрытия пробелов.
+- Plan of Action: кто/что/когда, материалы (eval plan/value hypothesis/exec narrative), следующий шаг/дата.
+- Метрики/алерты: stage exit criteria, deal health, пробелы и владельцы, decision/risk log.
+
+## Метрики и алерты
+- Stage exit: заполненность MEDDPICC, доступ к EB, согласован eval plan, известен paper/decision процесс.
+- Deal health: возраст стадии vs SLA, вероятность win, конкурентный статус, прогресс задач.
+- Алерты: нет EB/Champion/compelling event, неизвестен paper/decision, затяжная стадия.
+
+## Качество ответа (checklist)
+- MEDDPICC заполнен, пробелы с планом закрытия; конкуренты/риски учтены.
+- Следующий шаг, владелец, дата; нужные артефакты перечислены.
+- Метрики/алерты заданы; decision/risk logs обновлены; изменения зафиксированы.
+
+## Red Flags
+- Нет EB/Champion/compelling event; бумага/decision неясны.
+- Незаполненные поля MEDDPICC, нет eval plan/value calc; нет конкурентного плана.
+- Нет следующего шага/даты/владельца; сделка “зависла” > SLA.
 
 ## References
 

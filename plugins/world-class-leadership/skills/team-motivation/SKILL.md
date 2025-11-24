@@ -5,6 +5,11 @@ description: Advanced team motivation strategies based on psychological research
 
 # Team Motivation Excellence
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/world-class-leadership/skills/team-motivation/{timestamp}_{кратко}.md` через Write tool; обновляй один файл по итерациям.
+- Формат: цель/контекст → диагностика → план мотивации → метрики/алерты → TODO → изменения vs прошлой версии.
+
 ## When to Use This Skill
 
 - Team showing low engagement or motivation
@@ -31,6 +36,33 @@ description: Advanced team motivation strategies based on psychological research
 - Effective for short-term compliance
 - Can undermine intrinsic motivation if misused
 - Best for routine, algorithmic tasks
+
+## 3-итерационный контур
+1) **Диагностика (1–2 ч):** данные опросов (eNPS/engagement), сигналы burnout/нагрузки, справедливость/признание, цели/контекст. Черновой бриф + risk/decision log.
+2) **Дизайн (2–3 ч):** меры по SDT (Autonomy/Mastery/Purpose), признание/награждение, прозрачность/коммуникации, баланс нагрузки/ритм, быстрые wins. План с метриками/алертами.
+3) **Верификация (1 ч):** контрольные точки/опросы/фидбек, корректировки, TODO и изменения.
+
+## Входы (собери до старта)
+- eNPS/engagement, аттестации, жалобы/фидбек, workload/overload, участие в ритуалах/обучении.
+- Контекст: цели/приоритеты/изменения, бюджет/ограничения, текущие программы признания.
+
+## Выходы (обязательно зафиксировать)
+- План мотивации: действия по Autonomy/Mastery/Purpose, признание, баланс нагрузки, прозрачность/коммуникации.
+- Метрики/алерты, TODO/владельцы/сроки, изменения vs прошлой версии.
+
+## Метрики и алерты
+- eNPS/engagement, churn/absenteeism, workload/overload, участие в обучении/признании.
+- Алерты: падение опросов, рост оттока/больничных, жалобы на несправедливость/перегруз, отсутствие участия.
+
+## Качество ответа (checklist)
+- Причины демотивации описаны и связаны с мерами.
+- Покрыты Autonomy/Mastery/Purpose + признание + нагрузка + прозрачность.
+- Метрики/алерты и владельцы/сроки заданы; TODO/изменения зафиксированы.
+
+## Red Flags
+- Нет данных (опросы/фидбек), только “плюшки”.
+- Игнорирование нагрузки/справедливости; нет прозрачности решений.
+- Нет метрик/алертов/ритма; нет владельцев/сроков.
 
 ### The Self-Determination Theory (Deci & Ryan)
 
