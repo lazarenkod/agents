@@ -7,6 +7,19 @@ description: Сложные карьерные диалоги на уровне 
 
 Мастерство ведения сложных карьерных диалогов на основе практик AWS, Google, Microsoft, Netflix, NVIDIA, OpenAI, Stripe.
 
+## Формат работы и сохранение результатов
+
+- Всегда отвечай на русском языке и фиксируй решения в markdown через Write tool.
+- Храни материалы по пути `outputs/hr-business-partner/skills/difficult-career-conversations/{timestamp}_{case}.md`.
+- Каждую ситуацию прорабатывай в трех мини-итерациях: Диагностика контекста → Проектирование сценария разговора → Валидация, план последующих шагов и метрики.
+- В файле отражай ключевые сообщения, подготовленные скрипты, варианты реакций сотрудника, KPI/риски и ссылки на ассеты.
+
+## Asset & Reference Toolkit
+
+- **Assets**: `assets/crucial-conversations-script.md`, `assets/promotion-denied-conversation.md`, `assets/performance-feedback-script.md`, `assets/compensation-conversation-template.md`, `assets/career-plateau-discussion.md`, `assets/behavioral-issues-script.md`, `assets/emotional-response-handling-guide.md`.
+- **References**: `references/crucial-conversations-book-summary.md`, `references/radical-candor-matrix.md`, `references/legal-considerations.md`, `references/difficult-conversations-case-studies.md`, `references/neuroscience-of-difficult-feedback.md`.
+- Указывай конкретные файлы, которые использовал, в итоговом отчете.
+
 ## Когда использовать этот скилл
 
 - Отказ в повышении (promotion denied)

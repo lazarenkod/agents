@@ -7,6 +7,19 @@ description: Executive search и найм топ-менеджеров (C-level, 
 
 Поиск и найм топ-менеджеров (C-level executives и VPs) на основе практик ведущих технологических компаний: AWS, Google, Microsoft, Netflix, NVIDIA, OpenAI, Stripe.
 
+## Формат работы и сохранение результатов
+
+- Всегда отвечай на русском языке и сохраняй артефакты через Write tool в markdown.
+- Используй путь `outputs/hr-business-partner/skills/executive-search-leadership-hiring/{timestamp}_{case}.md`.
+- Каждый поиск веди в трех циклах: Диагностика роли/контекста → Проектирование стратегии (воронка, ассессмент, compensation) → Валидация и утверждение решений (оффер, onboarding, KPI).
+- В отчете фиксируй профиль роли, критерии успеха, карту интервьюеров, метрики воронки, бюджет и задействованные assets/references.
+
+## Asset & Reference Toolkit
+
+- **Assets**: `assets/executive-profile-template.md`, `assets/executive-interview-questions.md`, `assets/reference-check-script.md`, `assets/executive-scorecard.md`, `assets/compensation-benchmarking-template.md`, `assets/30-60-90-onboarding-plan.md`, `assets/executive-search-rfp-template.md`.
+- **References**: `references/market-compensation-benchmarks.md`, `references/board-alignment-guide.md`, `references/candidate-due-diligence-checklist.md`, `references/search-firm-landscape.md`.
+- Все промежуточные данные (pipeline, DEI метрики, compensation) обязательно прикрепляй к итоговому markdown.
+
 ## Когда использовать этот скилл
 
 - Поиск и найм C-level executives (CEO, CTO, CFO, CPO, CMO, CISO)

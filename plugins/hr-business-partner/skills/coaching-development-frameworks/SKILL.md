@@ -7,6 +7,19 @@ description: Профессиональный коучинг и развитие
 
 Профессиональный коучинг и развитие сотрудников на основе практик AWS, Google, Microsoft, Netflix, NVIDIA, OpenAI, Stripe.
 
+## Формат работы и сохранение результатов
+
+- Отвечай только на русском языке и фиксируй все выводы в markdown через Write tool.
+- Используй путь `outputs/hr-business-partner/skills/coaching-development-frameworks/{timestamp}_{case}.md`.
+- Каждую задачу веди в трех мини-итерациях: Диагностика запроса → Проектирование развития → Валидация и уточнение метрик.
+- В итоговом отчете указывай исходные данные, выбранные фреймворки, план действий, KPI и ссылки на assets/references.
+
+## Asset & Reference Toolkit
+
+- **Assets**: `assets/grow-model-conversation-template.md`, `assets/career-conversation-agenda.md`, `assets/idp-template.md`, `assets/coaching-notes-template.md`, `assets/skip-level-meeting-guide.md`, `assets/mentorship-program-playbook.md`.
+- **References**: `references/google-project-oxygen-summary.md`, `references/microsoft-growth-mindset-case-study.md`, `references/amazon-leadership-development.md`, `references/coaching-psychology-fundamentals.md`, `references/books-and-resources.md`.
+- Каждый артефакт обновляй по результатам итераций и прикладывай ссылку в итоговом markdown.
+
 ## Когда использовать этот скилл
 
 - Conducting effective 1-on-1 coaching conversations

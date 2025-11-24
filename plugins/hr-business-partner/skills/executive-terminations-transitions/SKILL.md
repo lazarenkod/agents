@@ -7,6 +7,19 @@ description: Увольнения и переходы топ-менеджеро�
 
 Управление увольнениями и переходами топ-менеджеров на основе практик AWS, Google, Microsoft, Netflix, NVIDIA, OpenAI, Stripe.
 
+## Формат работы и сохранение результатов
+
+- Все шаги описывай на русском языке и фиксируй в markdown через Write tool.
+- Используй путь `outputs/hr-business-partner/skills/executive-terminations-transitions/{timestamp}_{case}.md`.
+- Работай в трех циклах: Диагностика бизнес-контекста → Проектирование сценариев выхода (legal, finance, comms) → Валидация, меры контроля репутационных и юридических рисков.
+- В отчете подробно отражай контекст, план коммуникаций, расчеты компенсаций, knowledge transfer и метрики (litigation risk, eNPS, attrition).
+
+## Asset & Reference Toolkit
+
+- **Assets**: `assets/termination-readiness-checklist.md`, `assets/executive-communication-plan.md`, `assets/severance-model-calculator.md`, `assets/knowledge-transfer-plan.md`, `assets/termination-conversation-script.md`.
+- **References**: `references/legal-risk-framework.md`, `references/case-studies-sensitive-exits.md`, `references/media-strategy-playbook.md`, `references/alumni-program-guide.md`.
+- Всегда прикладывай ссылку на использованные файлы в итоговом markdown.
+
 ## Когда использовать этот скилл
 
 - Performance-based termination (C-level, VPs не справляются)

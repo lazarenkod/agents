@@ -7,6 +7,19 @@ description: Мастерство управления мотивацией ко
 
 Мастерство управления мотивацией команды на основе лучших практик ведущих технологических компаний мира: AWS, Google, Microsoft, Netflix, NVIDIA, OpenAI, Stripe.
 
+## Формат работы и сохранение результатов
+
+- Всегда отвечай на русском языке и записывай все решения в markdown-файлы через Write tool.
+- Путь сохранения: `outputs/hr-business-partner/skills/team-motivation-excellence/{timestamp}_{case}.md`.
+- Каждый запрос проходи минимум через три мини-итерации: Диагностика → Проработка решения → Валидация и улучшение.
+- В отчет добавляй вводные, аналитические шаги, конечные рекомендации, KPI и ссылку на использованные ассеты/референсы.
+
+## Asset & Reference Toolkit
+
+- **Assets**: `assets/motivation-assessment-matrix.md`, `assets/engagement-pulse-template.md`, `assets/recognition-system-blueprint.md`, `assets/burnout-signal-checklist.md`.
+- **References**: `references/project-aristotle-summary.md`, `references/psychological-safety-playbook.md`, `references/motivation-case-studies.md`, `references/neuroscience-of-motivation.md`.
+- Прикладывай обновленные версии чек-листов в итоговом markdown.
+
 ## Когда использовать этот скилл
 
 - Диагностика и повышение мотивации команды

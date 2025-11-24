@@ -7,6 +7,19 @@ description: Стратегический найм уровня AWS, Google, Mic
 
 Стратегический найм мирового уровня на основе практик AWS, Google, Microsoft, Netflix, NVIDIA, OpenAI, Stripe.
 
+## Формат работы и сохранение результатов
+
+- Всегда отвечай на русском и сохраняй все решения в markdown (Write tool обязателен).
+- Путь: `outputs/hr-business-partner/skills/strategic-hiring-excellence/{timestamp}_{case}.md`.
+- Каждый кейс веди в трех циклах: Диагностика (воронка, барьеры) → Проектирование системы найма → Валидация и метрики (time-to-offer, quality of hire, diversity).
+- В итоговом документе фиксируй вводные данные, рекомендуемые фреймворки, изменения процессов, KPI и список задействованных assets/references.
+
+## Asset & Reference Toolkit
+
+- **Assets**: `assets/job-scorecard-template.md`, `assets/interview-scorecard.md`, `assets/hiring-operating-cadence.md`, `assets/bar-raiser-training-checklist.md`, `assets/candidate-experience-playbook.md`, `assets/sourcing-kanban-board.md`.
+- **References**: `references/diversity-hiring-metrics.md`, `references/time-to-hire-benchmarks.md`, `references/structured-interview-guide.md`, `references/talent-brand-examples.md`.
+- Добавляй ссылки на использованные файлы в каждом markdown-отчете.
+
 ## Когда использовать этот скилл
 
 - Разработка hiring strategy и workforce planning

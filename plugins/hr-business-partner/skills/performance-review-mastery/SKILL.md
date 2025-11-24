@@ -7,6 +7,19 @@ description: Мастерство проведения performance review на �
 
 Мастерство проведения performance review и управления performance на основе лучших практик AWS, Google, Microsoft, Netflix, NVIDIA, OpenAI, Stripe.
 
+## Формат работы и сохранение результатов
+
+- Все решения формулируй на русском языке и фиксируй в markdown через Write tool.
+- Сохраняй материалы по пути `outputs/hr-business-partner/skills/performance-review-mastery/{timestamp}_{case}.md`.
+- Каждую задачу прорабатывай в трех циклах: Диагностика контекста → Проектирование механики review/калибровок → Валидация, план внедрения и метрики.
+- В отчетах отражай входные данные, выбранные фреймворки, планы коммуникаций, KPI (rating distribution, pay outcomes, talent risk) и ссылки на assets.
+
+## Asset & Reference Toolkit
+
+- **Assets**: `assets/annual-performance-review-template.md`, `assets/okr-review-template.md`, `assets/calibration-meeting-deck.md`, `assets/performance-improvement-plan-template.md`, `assets/feedback-synthesis-template.md`, `assets/promotion-case-template.md`.
+- **References**: `references/ratings-distribution-benchmarks.md`, `references/continuous-feedback-rituals.md`, `references/google-performance-system-case.md`, `references/netflix-talent-density-notes.md`.
+- Все использованные артефакты прикладывай к markdown с пометкой итерации.
+
 ## Когда использовать этот скилл
 
 - Проведение annual/semi-annual performance reviews
