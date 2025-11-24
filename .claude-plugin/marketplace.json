@@ -3435,6 +3435,47 @@
         "./skills/cloud-developer-advocacy",
         "./skills/cloud-enterprise-marketing"
       ]
+    },
+    {
+      "name": "business-strategy",
+      "source": "./plugins/business-strategy",
+      "description": "World-class business strategy expertise from McKinsey, BCG, Bain, and top consulting firms. Provides strategic planning, market analysis, competitive positioning, M&A advisory, and business model innovation. Includes 2 specialized agents: business-strategist, market-expansion-lead. Four comprehensive skills: corporate-strategy, financial-strategy, market-entry, operating-model. Three powerful commands: board-strategy-brief, market-due-diligence, operating-model-sprint. Emulates expertise from AWS, Azure, Google Cloud, and Oracle strategy teams.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "business-strategy",
+        "corporate-development",
+        "market-analysis",
+        "competitive-intelligence",
+        "ma-advisory",
+        "business-model-innovation",
+        "mckinsey",
+        "bcg",
+        "bain"
+      ],
+      "category": "business",
+      "strict": false,
+      "commands": [
+        "./commands/board-strategy-brief.md",
+        "./commands/market-due-diligence.md",
+        "./commands/operating-model-sprint.md"
+      ],
+      "agents": [
+        "./agents/business-strategist.md",
+        "./agents/market-expansion-lead.md"
+      ],
+      "skills": [
+        "./skills/corporate-strategy",
+        "./skills/financial-strategy",
+        "./skills/market-entry",
+        "./skills/operating-model"
+      ]
     }
   ]
 }
