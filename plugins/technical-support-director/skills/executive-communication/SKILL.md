@@ -5,6 +5,16 @@ description: Effective communication с executive stakeholders, board presentati
 
 # Коммуникация с Руководством
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/technical-support-director/skills/executive-communication/{timestamp}_{кратко}.md` через Write tool; обновляй один файл по итерациям.
+- Формат: цель/контекст → аудитория/послание → структура/цифры → риски/решения → TODO → изменения vs прошлой версии.
+
+## 3-итерационный контур
+1) **Диагностика (0.5–1 ч):** цель коммуникации, аудитория (Board/ExCo/VP), ожидания/решения, ключевые риски/цифры. Черновой бриф.
+2) **Дизайн (1–2 ч):** структура (problem/impact/plan/asks), метрики, сценарии (base/upside/downside), визуалы, Q&A. Подготовить краткий нарратив.
+3) **Верификация (0.5–1 ч):** проверка ясности/сжатия, согласование легал/PR (если нужно), rehearsal, фиксация TODO/изменений.
+
 ## Принципы Executive Communication
 
 ### The Pyramid Principle
