@@ -5,6 +5,16 @@ description: World-class expert guide to CPU steal time diagnosis, mitigation, a
 
 # CPU Steal Time Optimization
 
+## Обязательные правила вывода
+- Отвечай **на русском**.
+- Артефакты складывай в `outputs/high-load-systems-architecture/skills/cpu-steal-time-optimization/{timestamp}_{кратко}.md` через Write tool (один файл на итерацию, дополняй).
+- Формат: контекст/нагрузка → диагностика → решения/тюнинг → метрики/алерты → план/риски → TODO/изменения.
+
+## 3-итерационный контур
+1) **Диагностика (до 1–2 ч):** собрать симптомы (latency, st%), окна пиков, тип workload, overcommit/NUMA/SMT, noisy neighbors, облачный тип инстанса. Черновой бриф + risk/decision log.
+2) **Дизайн (2–3 ч):** минимум 2 варианта (перенос/пининг/дедикейтед хост vs оптимизация гипервизора), CPU/NUMA пины, scheduler/RT настройки, облачные опции (dedicated/sole-tenant/isolated), QoS/quotas. Таблица trade-offs стоимости/рисков.
+3) **Верификация (1–2 ч):** нагрузочные/latency тесты, алерты (st%, p99), канареечный rollout, rollback/миграция план, обновление runbooks и TODO.
+
 ## When to Use This Skill
 
 - Diagnosing unexplained application latency in VMs
@@ -917,3 +927,34 @@ Batch/background:
 - `/references/bpftrace-kvm-scripts.md` - BPF tracing for KVM
 - `/references/steal-time-case-studies.md` - Real-world case studies
 - `/assets/benchmarking-steal-impact.md` - Benchmark methodology
+
+## Входы (собери до старта)
+- Симптомы: ст %, latency/error spikes, временные окна, workload (latency/throughput/batch), ядро/гипервизор/облако.
+- Топология: vCPU/pCPU ratio, NUMA/SMT, pinning, noisy neighbors, quotas/cgroups.
+- Платформа: тип инстанса (burstable/dedicated), tenant isolation, лицензии/стоимость.
+- Регуляторика/ограничения: миграции допустимы? окна даунтайма? требования к audit.
+
+## Выходы (обязательно зафиксировать)
+- Диагноз: источники steal (overcommit/noisy neighbor/SMT/сcheduler), доказательства (метрики/трейсы).
+- ≥2 варианта решения с trade-offs стоимости/риск/время (dedicated host vs tuning vs миграция).
+- План тюнинга: pinning/NUMA/RT/сgroups, облачный тип инстанса, QoS/изоляция, rollback/миграция.
+- Метрики/алерты/SLO, тест-план (нагрузка/chaos/latency), TODO/владельцы/сроки, decision/risk logs.
+
+## Метрики и алерты
+- Steal time % (per CPU), p50/p95/p99 latency, error rate, saturation (CPU/IRQ), ready time.
+- С scheduler: nr_throttled, runqueue length, context switches, cgroup throttling.
+- Алерты: st% > 5/10, latency > бюджет, noisy neighbor detection, NUMA/SMT misplacement, quota exhaustion.
+
+## Качество ответа (checklist)
+- Есть входные данные (нагрузка, ст%, топология, облако) и гипотеза причин.
+- ≥2 варианта решений с цифрами/стоимостью, пининг/NUMA/RT/изоляция разобраны.
+- Тест-план, алерты, rollback/миграция, TODO/владельцы, обновлённые decision/risk logs.
+
+## Red Flags
+- Нет данных по NUMA/SMT/overcommit, единственный вариант без trade-offs.
+- Отсутствуют алерты/тесты; игнор облачных опций (dedicated/sole-tenant); нет rollback.
+- Не зафиксированы TODO/владельцы и изменения.
+
+## Новые шаблоны и справочники
+- Assets: `cpu-pinning-generator.py`, `steal-time-monitor.sh`, `vcpu-auto-scaler.sh`, `prometheus-steal-exporter.yaml`, `grafana-steal-dashboard.json`, `benchmarking-steal-impact.md`.
+- References: `perf-vcpu-analysis.md`, `bpftrace-kvm-scripts.md`, `steal-time-case-studies.md`, `aws-dedicated-instances.md`, `gcp-sole-tenant-nodes.md`, `azure-dedicated-hosts.md`, `cloud-instance-selection.md`.

@@ -5,6 +5,16 @@ description: Expert guide to Linux kernel tuning and performance optimization. C
 
 # Linux Kernel Optimization
 
+## Обязательные правила вывода
+- Отвечай **на русском**.
+- Артефакты сохраняй в `outputs/high-load-systems-architecture/skills/linux-kernel-optimization/{timestamp}_{кратко}.md` (Write tool, дополняй итерации).
+- Формат: цель/нагрузка → диагностика → тюнинг (CPU/IO/NET/NUMA) → метрики/алерты → план/риски → TODO/изменения.
+
+## 3-итерационный контур
+1) **Диагностика (1–2 ч):** профиль workload (latency/throughput), ядро/дистрибутив, hw (NUMA, NIC, диски), текущие sysctl/cgroups, метрики USE/RED. Черновой бриф + risk/decision log.
+2) **Дизайн (2–3 ч):** ≥2 варианта тюнинга (low latency vs throughput) с таблицей параметров (CPU sched, THP, IO sched, TCP, IRQ/affinity, cgroups), cost/риск/совместимость. План тестов (fio/netperf/cyclictest).
+3) **Верификация (1–2 ч):** нагрузочные + латентностные тесты, алерты, rollback/guardrails, документация (runbooks), TODO/владельцы/сроки.
+
 ## When to Use This Skill
 
 - Optimizing kernel parameters for specific workloads
@@ -868,3 +878,36 @@ hwlatdetect --duration=60
 - `/references/psi-monitoring.md` - PSI-based load management
 - `/references/dpdk-setup.md` - DPDK userspace networking
 - `/references/xdp-programming.md` - XDP packet processing
+
+## Входы (собери до старта)
+- Workload: latency/throughput цели, tail p99/p99.9, jitter допуски.
+- Аппарат: CPU/NUMA/SMT, диски (SSD/NVMe/HDD), NIC, топология IRQ.
+- ОС: версия ядра, параметры sysctl/THP/IO sched, cgroups (v1/v2), eBPF/RT доступность.
+- Ограничения: даунтайм/перезагрузки, регуляторика, поддерживаемость (дистрибутив), стоимость железа.
+
+## Выходы (обязательно зафиксировать)
+- Диагноз: узкие места (CPU/IO/NET/memory) + доказательства.
+- ≥2 профиля тюнинга (low latency vs throughput) с параметрами и rollback.
+- Тест-план (fio/netperf/iperf/cyclictest/perf/bpftrace), алерты/SLO, runbooks.
+- TODO/владельцы/сроки, decision/risk logs, изменения vs прошлой версии.
+
+## Метрики и алерты
+- CPU: utilization, runqueue, context switches, throttling, steal, IRQ load.
+- Memory: rss/cache, PSI, oom_kill, THP hits/misses, numa miss.
+- IO: await, svctm, iops, queue depth, io_uring latency.
+- Net: p95/p99 RTT, retrans, drops, NIC errors, pacing/BBR, XDP drops.
+- Алерты: PSI full, oom, throttling, queue depth > budget, latency SLO breach.
+
+## Качество ответа (checklist)
+- Есть профиль нагрузки/железа/ядра; описаны проблемы и гипотезы.
+- Даны 2+ варианта тюнинга с параметрами/sysctl и rollback.
+- Есть тест-план, алерты, runbooks, TODO/владельцы и обновлённые логи решений.
+
+## Red Flags
+- Нет NUMA/IRQ/IO профиля, единственный сет параметров без проверки.
+- Отсутствуют тесты/алерты/rollback; игнор THP/IO sched/BBR/PSI.
+- Нет закрепления владельцев/сроков.
+
+## Новые шаблоны и справочники
+- Assets: `profiling-checklist.md`, `perf-profiling-playbook.md`, `ebpf-latency-probe.md`.
+- References: `scheduler-tuning.md`, `network-stack-tuning.md`, `io_uring-guide.md`, `cgroups-v2-migration.md`, `realtime-kernel-guide.md`, `perf-guide.md`, `flamegraph-guide.md`, `bpftrace-scripts.md`, `ebpf-tools.md`, `psi-monitoring.md`.

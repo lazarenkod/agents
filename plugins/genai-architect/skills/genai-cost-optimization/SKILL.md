@@ -86,8 +86,8 @@ Operations:
 - Нет алертов/квот/политик; нет владельцев/дат; отсутствует rollback.
 
 ## Шаблоны и справочники
-- Assets: `cost-optimization-playbook.md`, `fin-model-ai-template.md`, `policy-and-quotas.md`.
-- References: `cost-metrics-ai.md`, `optimization-techniques.md`, `routing-and-caching.md`.
+- Assets: `cost-optimization-playbook.md`, `fin-model-ai-template.md`, `policy-and-quotas.md`, `cost-benchmark-template.md`, `routing-policy-template.md`, `reserved-capacity-playbook.md`.
+- References: `cost-metrics-ai.md`, `optimization-techniques.md`, `routing-and-caching.md`, `provider-pricing-cheatsheet.md`, `batching-and-caching.md`, `spot-strategy.md`.
 #### Pricing Models Comparison (as of 2024)
 
 | Provider/Model | Input (per 1M tokens) | Output (per 1M tokens) | Context | Notes |

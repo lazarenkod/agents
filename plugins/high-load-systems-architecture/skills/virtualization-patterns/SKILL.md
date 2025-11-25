@@ -5,6 +5,16 @@ description: Comprehensive guide to virtualization patterns, KVM/libvirt optimiz
 
 # Virtualization Patterns
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/high-load-systems-architecture/skills/virtualization-patterns/{timestamp}_{кратко}.md` (Write tool, один файл на итерацию).
+- Формат: контекст/нагрузка → дизайн/паттерны → метрики/алерты → план миграций/риски → TODO/изменения.
+
+## 3-итерационный контур
+1) **Диагностика (до 1–2 ч):** цели (latency/throughput/оснащение), профили VM, NUMA/CPU/IO топология, требования к миграции/изоляции, cost. Черновик брифа + risk/decision log.
+2) **Дизайн (2–3 ч):** ≥2 варианта (overcommit vs pinning/dedicated; qcow2 vs raw; virtio vs SR-IOV/vDPA) с trade-offs. План live migration, sizing/placement, изоляция тенантов.
+3) **Верификация (1–2 ч):** тесты (fio/iperf/cyclictest), канареечный rollout, алерты (p99, st%, миграция), rollback/move план, TODO/владельцы.
+
 ## When to Use This Skill
 
 - Designing KVM/libvirt infrastructure for cloud platforms
@@ -1057,3 +1067,35 @@ sysbench cpu --threads=4 --time=60 run
 - `/references/performance-profiling.md` - VM performance analysis
 - `/assets/vm-sizing-template.md` - VM sizing worksheet
 - `/assets/benchmark-results.md` - Benchmark comparison data
+
+## Входы (собери до старта)
+- Workload/SLO: latency p95/p99, throughput, миграции/HA требования, лицензии.
+- Топология: CPU/NUMA, SMT, диски (тип/RAID), сеть (NIC, offloads), SR-IOV/vDPA доступность.
+- Политики: overcommit, isolation (tenants), security (SEV/TDX), окна даунтайма.
+- Стоимость/квоты: dedicated/isolated SKU, хост группы, storage/network стоимость.
+
+## Выходы (обязательно зафиксировать)
+- ≥2 архитектурных варианта (overcommit vs pinned/dedicated, virtio vs SR-IOV/vDPA) с trade-offs.
+- План миграций/HA: live/post-copy/failover, RTO/RPO, тест-план.
+- Тюнинг: CPU/NUMA/IRQ, память (HP/balloon), storage (cache/io), сеть (queues/bw), изоляция/безопасность.
+- Метрики/алерты/SLO, TODO/владельцы/сроки, decision/risk log, изменения vs прошлой версии.
+
+## Метрики и алерты
+- CPU: ready/steal, runqueue, migrations; memory: RSS/balloon/THP, swap.
+- Storage: IOPS/throughput, await, queue depth; Network: RTT/p99, retrans/drops, pps, VF errors.
+- Migration: downtime, dirty rate, remaining MB, fail count.
+- Алерты: st%>5/10, p99 latency breach, nearfull disk, VF/driver errors, migration > окно.
+
+## Качество ответа (checklist)
+- Входные данные по нагрузке/NUMA/изолированию собраны; риск лог обновлён.
+- Минимум 2 варианта с стоимостью/рисками и планом миграций/rollback.
+- Тест-план (fio/iperf/cyclictest), алерты, TODO/владельцы, артефакт с изменениями.
+
+## Red Flags
+- Нет данных по NUMA/SMT/overcommit; единственный вариант без trade-offs.
+- Игнор SR-IOV/HP/balloon/сеть/кэш; нет плана миграции/rollback/алертов.
+- Не зафиксированы владельцы/сроки/изменения.
+
+## Новые шаблоны и справочники
+- Assets: `vm-sizing-template.md`, `benchmark-results.md`.
+- References: `libvirt-xml-guide.md`, `live-migration.md`, `sriov-setup.md`, `vdpa-guide.md`, `confidential-computing.md`, `benchmarking-vms.md`, `vm-monitoring.md`.

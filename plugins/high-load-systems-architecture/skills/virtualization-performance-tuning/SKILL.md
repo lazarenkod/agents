@@ -5,6 +5,16 @@ description: World-class expert guide to advanced virtualization performance opt
 
 # Virtualization Performance Tuning
 
+## Обязательные правила вывода
+- Отвечай **на русском**.
+- Сохраняй артефакты в `outputs/high-load-systems-architecture/skills/virtualization-performance-tuning/{timestamp}_{кратко}.md` (Write tool, один файл на итерацию).
+- Формат: контекст/нагрузка → узкие места → тюнинг (CPU/NET/IO/NUMA) → метрики/алерты → план/риски → TODO/изменения.
+
+## 3-итерационный контур
+1) **Диагностика (1–2 ч):** цели (p99, throughput), текущий тюнинг (CPU mode/pinning, hugepages, virtio/vhost, SR-IOV), метрики (st%, ready, await, RTT), ограничения миграций/даунтайма. Черновой бриф + decision/risk log.
+2) **Дизайн (2–3 ч):** ≥2 варианта (virtio/vhost vs SR-IOV/vDPA, raw vs qcow2, io_uring vs AIO) с trade-offs стоимости/совместимости. План NUMA/IRQ, cache modes, queue/threads, security (isolation).
+3) **Верификация (1–2 ч):** fio/iperf/cyclictest, алерты SLO, канареечный rollout, rollback/миграции, TODO/владельцы и обновление логов.
+
 ## When to Use This Skill
 
 - Optimizing I/O performance (network, storage) in VMs
@@ -963,3 +973,35 @@ kprobe:blk_account_io_done /@start[arg0]/ {
 - `/assets/vcpu-optimizer.py` - vCPU optimization tool
 - `/assets/numa-topology-analyzer.py` - NUMA analysis
 - `/assets/grafana-vm-performance-dashboard.json` - Grafana dashboard
+
+## Входы (собери до старта)
+- Workload/SLO: latency p95/p99, jitter допуск, throughput/pps, миграции/HA.
+- Топология: CPU mode, pinning/NUMA/SMT, hugepages, IO stack (cache, io_uring/AIO), сеть (virtio/vhost/SR-IOV/vDPA), storage (raw/qcow2/NVMe).
+- Ограничения: лицензии, shared vs dedicated, безопасность (passthrough), даунтайм/перезагрузки.
+- Метрики/логи: ready/steal, queue depth, await, RTT/retrans, dirty rate для миграций.
+
+## Выходы (обязательно зафиксировать)
+- Диагноз: узкие места CPU/NET/IO/NUMA, подтверждённые метриками/трейсами.
+- ≥2 варианта тюнинга с trade-offs (perf/совместимость/стоимость) и rollback.
+- План тестов (fio/iperf/netperf/cyclictest), алерты/SLO, канареечный rollout/rollback.
+- TODO/владельцы/сроки, decision/risk log, изменения vs прошлой версии.
+
+## Метрики и алерты
+- CPU: ready/steal, runqueue, vCPU pinning эффективность; Memory: THP/HP hits, swap, balloon stats.
+- Network: RTT/p99, retrans/drops, pps, queues, vhost/virtio stats, VF errors.
+- Storage: p99 latency, await, IOPS/throughput, queue depth, cache hit/miss.
+- Алерты: p99 > бюджет, st% >5/10, queue depth > бюджет, migration downtime>окно, VF/driver errors.
+
+## Качество ответа (checklist)
+- Есть входные данные по нагрузке/топологии/ограничениям; обновлён риск/decision log.
+- ≥2 варианта с параметрами (CPU/NET/IO/NUMA) и rollback; планы тестов/канареек/алертов.
+- TODO/владельцы/сроки зафиксированы; артефакт с diff изменений.
+
+## Red Flags
+- Нет данных по NUMA/pinning, игнор SR-IOV/vDPA/hugepages/IO cache.
+- Единственный вариант без trade-offs/rollback; отсутствуют тесты/алерты.
+- Не зафиксированы владельцы/изменения/decision log.
+
+## Новые шаблоны и справочники
+- Assets: `vm-performance-monitor.sh`, `latency-profiler.sh`, `vcpu-optimizer.py`, `numa-topology-analyzer.py`, `grafana-vm-performance-dashboard.json`.
+- References: `qemu-performance-optimization.md`, `dpdk-vhost-user-guide.md`, `spdk-integration.md`, `hugepages-sizing-guide.md`, `numa-optimization-advanced.md`, `network-latency-optimization.md`, `io-threading-guide.md`.

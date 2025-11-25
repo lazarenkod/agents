@@ -1,0 +1,27 @@
+groups:
+- name: cpu_steal_alerts
+  rules:
+  - alert: HighCPUSteal
+    expr: rate(node_cpu_seconds_total{mode="steal"}[5m]) * 100 > 10
+    for: 5m
+    labels:
+      severity: warning
+      team: sre
+    annotations:
+      summary: "Высокий steal time на {{ $labels.instance }}"
+      description: "Steal time {{ $value }}% > 10% в течение 5м. Проверить noisy neighbor/overcommit."
+  - alert: CriticalCPUSteal
+    expr: rate(node_cpu_seconds_total{mode="steal"}[5m]) * 100 > 20
+    for: 2m
+    labels:
+      severity: critical
+      team: sre
+    annotations:
+      summary: "Критический steal time на {{ $labels.instance }}"
+      description: "Steal time {{ $value }}% > 20%. Рассмотреть миграцию/дедикейтед хост."
+
+scrape_configs:
+- job_name: node_exporter
+  static_configs:
+  - targets:
+    - localhost:9100

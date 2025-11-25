@@ -575,3 +575,9 @@ audit_logger.log_security_event(
 - **references/owasp-llm-top10.md**
 - **references/pii-patterns.md**
 - **assets/security-checklist.md**
+- **assets/security-test-plan.md**
+- **assets/pii-handling-runbook.md**
+- **assets/policy-eval-checklist.md**
+- **references/llm-threat-models.md**
+- **references/policy-templates.md**
+- **references/red-team-playbook.md**

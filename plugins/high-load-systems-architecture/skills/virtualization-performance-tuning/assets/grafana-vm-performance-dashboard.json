@@ -1,0 +1,31 @@
+{
+  "title": "VM Performance",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "CPU ready/steal",
+      "targets": [
+        { "expr": "rate(node_cpu_seconds_total{mode=\"steal\"}[5m])*100", "legendFormat": "steal {{instance}}" },
+        { "expr": "kvm_vcpu_ready_seconds_total", "legendFormat": "ready {{instance}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Network p99 latency / retrans",
+      "targets": [
+        { "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000", "legendFormat": "p99" },
+        { "expr": "rate(node_netstat_Tcp_RetransSegs[5m])", "legendFormat": "retrans {{instance}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Storage await/queue depth",
+      "targets": [
+        { "expr": "irate(node_disk_read_time_seconds_total[5m]) / irate(node_disk_reads_completed_total[5m]) * 1000", "legendFormat": "read await" },
+        { "expr": "node_disk_io_time_weighted_seconds_total", "legendFormat": "queue" }
+      ]
+    }
+  ]
+}

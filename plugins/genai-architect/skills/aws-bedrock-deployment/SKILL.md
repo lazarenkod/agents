@@ -851,5 +851,10 @@ result = guardrails.invoke_with_guardrail(
 - **references/bedrock-pricing.md** - Детальный pricing guide
 - **references/model-comparison.md** - Сравнение моделей
 - **references/knowledge-bases-guide.md** - RAG best practices
+- **references/bedrock-quotas.md** - Лимиты/квоты и как их повышать
+- **references/bedrock-slo-metrics.md** - Набор SLO/метрик/алертов
 - **assets/terraform/bedrock.tf** - IaC templates
 - **assets/cloudformation/bedrock-stack.yaml** - CFN templates
+- **assets/bedrock-runbook.md** - Runbook инцидентов/rollback
+- **assets/kb-setup-template.md** - Шаблон создания Knowledge Base
+- **assets/multi-region-failover.md** - План кросс-регионального фейловера

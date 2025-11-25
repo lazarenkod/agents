@@ -5,6 +5,16 @@ description: Comprehensive guide to distributed storage systems including Ceph, 
 
 # Distributed Storage
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/high-load-systems-architecture/skills/distributed-storage/{timestamp}_{кратко}.md` через Write tool (дописывай итерации в тот же файл).
+- Формат: контекст/нагрузка → решения (репликация/EC/шардинг) → метрики/алерты → планы (capacity/DR/test) → TODO/риски → изменения vs прошлой версии.
+
+## 3-итерационный контур
+1) **Диагностика (1–2 ч):** workload + регуляторика, цели durability/SLO (latency p95/p99, RPO/RTO), текущая топология/CRUSH/placement, hotspots. Черновой бриф + risk/decision log.
+2) **Дизайн (2–4 ч):** ≥2 варианта (реплика vs EC, shard стратегии) с CAP/PACELC trade-offs, карты размещения (AZ/Region), план rebalance/capacity/DR, метрики/алерты. Таблица вариантов/рисков/стоимости.
+3) **Верификация (1–2 ч):** тест-планы (load/chaos/failover/consistency), алерты/SLO/SLA, runbooks (hot shard, lag, DR), rollout/канарейки, TODO/владельцы и обновление логов.
+
 ## When to Use This Skill
 
 - Designing Ceph clusters for specific workloads
@@ -701,6 +711,9 @@ Region A (primary) → Region B (standby)
 - `/references/tiered-storage.md` - Tiered storage patterns
 - `/references/lsm-vs-btree.md` - Storage engine comparison
 - `/references/multi-region-replication.md` - Cross-region patterns
+- `/references/consistency-cheatsheet.md` - Выбор модели консистентности и кворумов
+- `/references/storage-metrics.md` - Метрики/алерты для SLO наблюдаемости
+- `/references/failure-modes.md` - Частые аварии и методы восстановления
 - `/assets/capacity-planning-worksheet.md` - Capacity planning template
 
 ### Storage Comparison
@@ -713,3 +726,33 @@ Region A (primary) → Region B (standby)
 - `/references/monitoring-tools.md` - Storage monitoring (Prometheus, Grafana)
 - `/assets/performance-tuning-checklist.md` - Tuning checklist
 - `/assets/disaster-recovery-playbook.md` - DR procedures
+
+## Входы (собери до старта)
+- Workload: read/write mix, block/object/file, размер объектов, tail latency цели.
+- SLO: latency p95/p99, throughput, durability/availability (реплика/EC), RPO/RTO.
+- Данные/регуляторика: PII/суверенитет, multi-region, egress/стоимость.
+- Ограничения: железо/бюджет, сеть, команда/опыт, существующие кластеры.
+
+## Выходы (обязательно зафиксировать)
+- Стратегия (репликация vs EC, шардирование/placement groups, tiered storage) с trade-offs.
+- Планы capacity/DR/backup, тест-планы (load/chaos/failover), метрики/алерты.
+- TODO/владельцы/сроки, decision/risk log, изменения vs прошлой версии.
+
+## Метрики и алерты
+- Latency p50/p95/p99 (read/write), throughput, IOPS, queue depth, tail spikes.
+- Репликация/EC: lag, rebalance time, recovery rate; durability incidents.
+- Capacity: использовано/свободно/fragmentation, hot spots, cache hit (если есть).
+- Алерты: рост latency/ошибок, деградация rebalance/recovery, исчерпание capacity, дрейф конфигов.
+
+## Качество ответа (checklist)
+- Описаны SLO/нагрузка/регуляторика; есть варианты с CAP/PACELC trade-offs.
+- Есть DR/backup/фейловер план, тесты и алерты; cost/egress учтены.
+- TODO/владельцы/изменения зафиксированы; decision/risk логи обновлены.
+
+## Red Flags
+- Нет требований к durability/consistency; нет плана failover/backup.
+- Игнор hot-spots/egress; нет алертов/тестов; нет владельцев/сроков.
+
+## Новые шаблоны и справочники
+- Assets: `replication-plan.md`, `sharding-plan.md`, `storage-dr-runbook.md`.
+- References: `consistency-cheatsheet.md`, `storage-metrics.md`, `failure-modes.md`.

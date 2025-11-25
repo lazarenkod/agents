@@ -1,0 +1,41 @@
+{
+  "title": "CPU Steal & Latency",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "CPU Steal %",
+      "targets": [
+        {
+          "expr": "rate(node_cpu_seconds_total{mode=\"steal\"}[5m])*100",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency p99 (ms)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Runqueue / Throttling",
+      "targets": [
+        {
+          "expr": "node_schedstat_runqueue_length",
+          "legendFormat": "rq"
+        },
+        {
+          "expr": "rate(container_cpu_cfs_throttled_seconds_total[5m])",
+          "legendFormat": "cfs throttled"
+        }
+      ]
+    }
+  ]
+}

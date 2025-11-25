@@ -5,6 +5,16 @@ description: Comprehensive guide to designing high-load distributed systems. Cov
 
 # High-Load System Design
 
+## Обязательные правила вывода
+- Всегда отвечай **на русском**.
+- Сохраняй артефакты в `outputs/high-load-systems-architecture/skills/high-load-system-design/{timestamp}_{кратко}.md` через Write tool (обновляй один файл по итерациям).
+- Формат: цель/нагрузка → требования → архитектурные варианты → метрики/алерты → план/риски → TODO → изменения vs прошлой версии.
+
+## 3-итерационный контур
+1) **Диагностика (1–2 ч):** профиль нагрузки (RPS/QPS, рост, пики), SLO (latency/availability), данные (consistency/volume), трафик (geo/read/write mix), ограничения (PII/регуляторика/стоимость). Черновой бриф + risk/decision log.
+2) **Дизайн (2–4 ч):** 2–3 архитектурных варианта (monolith→SOA→microservices, CQRS/Event-driven, cache/CDN, sharding/partitioning), консистентность (CAP/PACELC), очереди/стриминг, observability/SRE, cost. Таблица вариантов/рисков/метрик.
+3) **Верификация (1–2 ч):** нагрузочные/хаос тесты, алерты/SLO/окна ошибок, план rollout/канареек, DR/backup, TODO и обновление логов.
+
 ## When to Use This Skill
 
 - Designing architecture for systems handling millions of requests per second
@@ -678,3 +688,34 @@ rabbitmqctl status | grep memory
 - `/references/architecture-tools.md` - Architecture planning tools
 - `/references/benchmarking-tools.md` - Performance measurement tools
 - `/references/observability-stack.md` - Monitoring and tracing tools
+
+## Входы (собери до старта)
+- SLO: latency p50/p95/p99, availability, error budget, throughput.
+- Нагрузка: RPS/QPS, read/write mix, пики/суточные паттерны, рост, гео.
+- Данные: объём, модели (OLTP/OLAP), consistency/replication, PII/регуляторика.
+- Ограничения: стек/команда, бюджет/стоимость, монолит/зависимости, текущие боли.
+
+## Выходы (обязательно зафиксировать)
+- ≥2 архитектурных варианта с trade-offs; выбранная схема (сервисы/хранения/кеши/очереди/CDN/obs).
+- SLO/алерты, capacity/автоскейл план, тест-план (load/chaos/fault), DR/backup/runbooks.
+- TODO/владельцы/сроки, decision/risk log, изменения vs прошлой версии.
+
+## Метрики и алерты
+- Latency p50/p95/p99, error rate, saturation (CPU/mem/disk/net), queue depth, cache hit, tail latency.
+- Capacity: headroom, autoscale events, backlog, GC/pauses.
+- Стоимость/бизнес: cost per RPS/req, SLA кредиты, использование квот.
+- Алерты: рост tail latency/ошибок, исчерпание ресурсов, дрифт конфигов, SLA breach.
+
+## Качество ответа (checklist)
+- Требования/нагрузка/данные описаны; варианты с цифрами и trade-offs.
+- Есть SLO/алерты, тест-план (load/chaos), DR/backup, rollout/канарейки.
+- TODO/владельцы/сроки и обновлённые decision/risk logs; изменения зафиксированы.
+
+## Red Flags
+- Нет SLO/нагрузочных профилей; единственный вариант без оценки рисков.
+- Игнорирование кешей/очередей/изоляции или CAP/PACELC; отсутствие тестов/алертов.
+- Нет плана DR/backup/rollback; нет владельцев/контрольных точек.
+
+## Новые шаблоны и справочники
+- Assets: `architecture-decision-record.md`, `load-test-plan.md`, `capacity-plan.md`, `chaos-test-plan.md`.
+- References: `patterns-cheatsheet.md`, `metrics-and-alerts.md`, `cap-pacelc-guide.md`, `slo-sli-guide.md`.

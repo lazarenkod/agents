@@ -619,8 +619,16 @@ cloudwatch.put_dashboard(
 - **references/gcp-vertex-guide.md** - GCP Vertex AI deployment
 - **references/nvidia-nim-guide.md** - NVIDIA NIM optimization
 - **references/cost-comparison.md** - Сравнение стоимости провайдеров
+- **references/platform-benchmarks.md** - Бенчмарки провайдеров/самостоятельного хостинга
+- **references/inference-failure-modes.md** - Частые аварии и гайд по восстановлению
+- **references/latency-tuning.md** - Тюнинг латентности инференса
+- **references/batching-strategies.md** - Паттерны batching/очередей
 - **assets/terraform-templates/** - IaC templates для всех платформ
 - **assets/monitoring-dashboards/** - Dashboard configurations
+- **assets/inference-slo-template.md** - Шаблон SLO/алертов
+- **assets/gpu-capacity-plan.md** - Планирование capacity GPU/CPU
+- **assets/autoscaling-runbook.md** - Runbook для автоскейлинга/деградаций
+- **assets/model-routing-policy.md** - Политика роутинга моделей и fallback
 
 ## Troubleshooting
 

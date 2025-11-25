@@ -55,8 +55,8 @@ description: Production-ready RAG (Retrieval-Augmented Generation) архите�
 - Нет владельцев/алертов/SLO; нет плана обновлений/rollback.
 
 ## Шаблоны и справочники
-- Assets: `rag-architecture-template.md`, `eval-plan-template.md`, `guardrails-checklist.md`, `data-refresh-runbook.md`.
-- References: `rag-metrics-map.md`, `eval-methods.md`, `safety-and-privacy.md`.
+- Assets: `rag-architecture-template.md`, `eval-plan-template.md`, `guardrails-checklist.md`, `data-refresh-runbook.md`, `retrieval-eval-template.md`, `prompt-library.md`, `rag-ops-checklist.md`.
+- References: `rag-metrics-map.md`, `eval-methods.md`, `safety-and-privacy.md`, `chunking-strategies.md`, `guardrail-patterns.md`, `hybrid-search-cheatsheet.md`.
 
 ## Production RAG Architecture
 
