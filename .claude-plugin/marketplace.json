@@ -3476,6 +3476,57 @@
         "./skills/market-entry",
         "./skills/operating-model"
       ]
+    },
+    {
+      "name": "datacenter-hardware-expert",
+      "source": "./plugins/datacenter-hardware-expert",
+      "description": "Comprehensive datacenter hardware expertise covering server infrastructure, virtualization, and facilities management. Expert-level knowledge matching AWS, Azure, Google Cloud, and Oracle Cloud senior roles. Includes 4 specialized agents: datacenter-hardware-architect (infrastructure design), hardware-diagnostics-specialist (failure analysis), virtualization-infrastructure-expert (hypervisor troubleshooting), datacenter-facilities-analyst (power & cooling). Five deep skills: hardware-failure-analysis (RCA methodology), datacenter-infrastructure (Tier I-IV design), virtualization-troubleshooting (VMware/Hyper-V/KVM), enterprise-server-hardware (CPU/memory/storage technologies), monitoring-alerting-systems (observability best practices). Three practical commands: hardware-diagnostics (automated health checks), root-cause-analysis (structured RCA), capacity-planning (resource forecasting). All outputs in Russian markdown format.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "datacenter",
+        "hardware",
+        "infrastructure",
+        "virtualization",
+        "vmware",
+        "hyper-v",
+        "kvm",
+        "server-management",
+        "facilities",
+        "power-cooling",
+        "capacity-planning",
+        "rca",
+        "diagnostics",
+        "enterprise-hardware",
+        "monitoring",
+        "russian"
+      ],
+      "category": "infrastructure",
+      "strict": false,
+      "commands": [
+        "./commands/hardware-diagnostics.md",
+        "./commands/root-cause-analysis.md",
+        "./commands/capacity-planning.md"
+      ],
+      "agents": [
+        "./agents/datacenter-hardware-architect.md",
+        "./agents/hardware-diagnostics-specialist.md",
+        "./agents/virtualization-infrastructure-expert.md",
+        "./agents/datacenter-facilities-analyst.md"
+      ],
+      "skills": [
+        "./skills/hardware-failure-analysis",
+        "./skills/datacenter-infrastructure",
+        "./skills/virtualization-troubleshooting",
+        "./skills/enterprise-server-hardware",
+        "./skills/monitoring-alerting-systems"
+      ]
     }
   ]
 }
