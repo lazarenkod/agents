@@ -3527,6 +3527,57 @@
         "./skills/enterprise-server-hardware",
         "./skills/monitoring-alerting-systems"
       ]
+    },
+    {
+      "name": "spec-driven-development",
+      "source": "./plugins/spec-driven-development",
+      "description": "Spec Driven Development и GitHub Spec Kit — проектирование систем через спецификации, API-first дизайн, OpenAPI/AsyncAPI/GraphQL, ADR/RFC, contract testing, living documentation. Навыки уровня senior ролей AWS, Azure, Google Cloud, Anthropic, OpenAI. Включает 5 специализированных агентов: spec-architect (главный архитектор спецификаций), api-contract-expert (эксперт по API контрактам), adr-specialist (специалист по ADR), spec-governance-advisor (советник по governance), github-spec-automator (автоматизация GitHub). Пять глубоких скиллов: openapi-mastery, design-documents, adr-patterns, github-spec-kit, contract-testing. Три практические команды: create-specification, validate-spec, spec-review. Все результаты сохраняются в Markdown на русском языке.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dmitry Lazarenko",
+        "url": "https://github.com/lazarenkod"
+      },
+      "homepage": "https://github.com/lazarenkod/agents",
+      "repository": "https://github.com/lazarenkod/agents",
+      "license": "MIT",
+      "keywords": [
+        "spec-driven-development",
+        "api-first",
+        "openapi",
+        "asyncapi",
+        "graphql",
+        "adr",
+        "rfc",
+        "design-documents",
+        "contract-testing",
+        "pact",
+        "github-actions",
+        "api-governance",
+        "living-documentation",
+        "specification",
+        "russian"
+      ],
+      "category": "architecture",
+      "strict": false,
+      "commands": [
+        "./commands/create-specification.md",
+        "./commands/validate-spec.md",
+        "./commands/spec-review.md"
+      ],
+      "agents": [
+        "./agents/spec-architect.md",
+        "./agents/api-contract-expert.md",
+        "./agents/adr-specialist.md",
+        "./agents/spec-governance-advisor.md",
+        "./agents/github-spec-automator.md"
+      ],
+      "skills": [
+        "./skills/openapi-mastery",
+        "./skills/design-documents",
+        "./skills/adr-patterns",
+        "./skills/github-spec-kit",
+        "./skills/contract-testing"
+      ]
     }
   ]
 }

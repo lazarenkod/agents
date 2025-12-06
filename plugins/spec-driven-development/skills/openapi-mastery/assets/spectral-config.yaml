@@ -1,0 +1,196 @@
+# .spectral.yaml - Конфигурация Spectral для API Governance
+# Версия: 2.0.0
+
+extends:
+  - spectral:oas
+
+# Переопределение путей
+overrides:
+  - files:
+      - "specs/internal/**"
+    rules:
+      operation-description: off
+      info-contact: off
+
+rules:
+  # ===== NAMING CONVENTIONS =====
+
+  # Paths должны быть в kebab-case
+  path-kebab-case:
+    description: "Paths должны использовать kebab-case"
+    message: "Path '{{path}}' должен быть в kebab-case"
+    severity: error
+    given: $.paths[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: ^/[a-z0-9-/{}]+$
+
+  # Paths не должны заканчиваться на /
+  path-no-trailing-slash:
+    description: "Paths не должны заканчиваться на /"
+    message: "Path '{{path}}' не должен заканчиваться на /"
+    severity: error
+    given: $.paths[*]~
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: /$
+
+  # Properties должны быть в camelCase
+  property-camel-case:
+    description: "Properties должны быть в camelCase"
+    severity: error
+    given: $..properties[*]~
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  # Enum values в SCREAMING_SNAKE_CASE
+  enum-screaming-snake-case:
+    description: "Enum values должны быть в SCREAMING_SNAKE_CASE"
+    severity: warn
+    given: $..enum[*]
+    then:
+      function: pattern
+      functionOptions:
+        match: ^[A-Z][A-Z0-9_]*$
+
+  # ===== DOCUMENTATION =====
+
+  # Все операции должны иметь operationId
+  operation-operationId:
+    severity: error
+
+  # Все операции должны иметь summary
+  operation-summary:
+    description: "Операции должны иметь summary"
+    severity: warn
+    given: $.paths[*][get,post,put,patch,delete]
+    then:
+      field: summary
+      function: truthy
+
+  # Все операции должны иметь description
+  operation-description:
+    description: "Операции должны иметь description"
+    severity: warn
+    given: $.paths[*][get,post,put,patch,delete]
+    then:
+      field: description
+      function: truthy
+
+  # Операции должны иметь tags
+  operation-tags:
+    severity: warn
+
+  # Schemas должны иметь description
+  schema-description:
+    description: "Schemas должны иметь description"
+    severity: hint
+    given: $.components.schemas[*]
+    then:
+      field: description
+      function: truthy
+
+  # ===== EXAMPLES =====
+
+  # Response должны иметь examples
+  response-examples:
+    description: "Responses должны иметь примеры"
+    severity: warn
+    given: $.paths.*.*.responses[?(@property >= 200 && @property < 300)].content.application/json
+    then:
+      function: xor
+      functionOptions:
+        properties:
+          - example
+          - examples
+
+  # ===== SECURITY =====
+
+  # Операции должны иметь security
+  operation-security-defined:
+    description: "Операции должны иметь security"
+    severity: warn
+    given: $.paths[*][get,post,put,patch,delete]
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          oneOf:
+            - required: [security]
+            - properties:
+                security:
+                  type: array
+
+  # ===== VERSIONING =====
+
+  # Версия API должна быть в semver формате
+  info-version-semver:
+    description: "Версия API должна быть в semver формате"
+    severity: error
+    given: $.info.version
+    then:
+      function: pattern
+      functionOptions:
+        match: ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$
+
+  # ===== ERROR HANDLING =====
+
+  # Error responses должны использовать стандартную схему
+  error-response-schema:
+    description: "Error responses должны использовать стандартную схему Error"
+    severity: warn
+    given: $.paths.*.*.responses[?(@property >= 400)].content.application/json.schema
+    then:
+      field: $ref
+      function: pattern
+      functionOptions:
+        match: Error$
+
+  # ===== BEST PRACTICES =====
+
+  # Arrays должны иметь items с типом
+  array-items-type:
+    description: "Arrays должны иметь items с типом"
+    severity: error
+    given: $..properties[?(@.type == 'array')]
+    then:
+      field: items
+      function: truthy
+
+  # POST/PUT/PATCH должны иметь requestBody
+  request-body-on-write:
+    description: "POST/PUT/PATCH операции должны иметь requestBody"
+    severity: warn
+    given: $.paths[*][post,put,patch]
+    then:
+      field: requestBody
+      function: truthy
+
+  # ===== PAGINATION =====
+
+  # List endpoints должны поддерживать pagination
+  list-pagination:
+    description: "GET endpoints возвращающие массивы должны поддерживать pagination"
+    severity: hint
+    given: $.paths[*].get
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          properties:
+            parameters:
+              type: array
+              contains:
+                properties:
+                  name:
+                    enum: [limit, pageSize, page_size]
+
+  # ===== DISABLED RULES =====
+
+  # Отключаем слишком строгие правила
+  oas3-unused-component: off
+  oas3-api-servers: off
