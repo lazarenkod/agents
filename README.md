@@ -79,6 +79,22 @@ Install the plugins you need:
 
 Each installed plugin loads **only its specific agents, commands, and skills** into Claude's context.
 
+### Using with Claude Desktop
+
+Want to use these agents in Claude Desktop (desktop app)? See the **[Claude Desktop Quick Start Guide](CLAUDE_DESKTOP_QUICK_START.md)** for:
+- ✅ Exporting agents for Claude Desktop Projects
+- ✅ Using Custom Instructions and Project Knowledge
+- ✅ Step-by-step setup for any plugin
+- ✅ MCP server integration (advanced)
+
+```bash
+# Export any plugin for Claude Desktop
+./scripts/export-for-claude-desktop.sh tech-content-creator
+
+# Follow instructions in exported README
+open exports/claude-desktop/tech-content-creator/README.md
+```
+
 ## Documentation
 
 ### Core Guides
@@ -88,6 +104,8 @@ Each installed plugin loads **only its specific agents, commands, and skills** i
 - **[Agent Skills](docs/agent-skills.md)** - 47 specialized skills with progressive disclosure
 - **[Usage Guide](docs/usage.md)** - Commands, workflows, and best practices
 - **[Architecture](docs/architecture.md)** - Design principles and patterns
+- **[Claude Desktop Integration](CLAUDE_DESKTOP_QUICK_START.md)** - Using agents in Claude Desktop app
+- **[Claude Desktop Advanced Guide](docs/claude-desktop-integration-guide.md)** - MCP server and advanced integration
 
 ### Quick Links
 
