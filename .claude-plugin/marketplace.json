@@ -2625,7 +2625,8 @@
         "./agents/enterprise-sales-strategist.md",
         "./agents/enterprise-negotiator.md",
         "./agents/strategic-account-executive.md",
-        "./agents/solution-architect-seller.md"
+        "./agents/solution-architect-seller.md",
+        "./agents/competitive-strategist.md"
       ],
       "skills": [
         "./skills/enterprise-sales-methodology",
