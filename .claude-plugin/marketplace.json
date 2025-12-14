@@ -2062,9 +2062,9 @@
         "./agents/posix-shell-pro.md"
       ],
       "skills": [
-        "./skills/bash-defensive-patterns/SKILL.md",
-        "./skills/shellcheck-configuration/SKILL.md",
-        "./skills/bats-testing-patterns/SKILL.md"
+        "./skills/bash-defensive-patterns",
+        "./skills/shellcheck-configuration",
+        "./skills/bats-testing-patterns"
       ]
     },
     {
@@ -3075,7 +3075,9 @@
         "./skills/coaching-development-frameworks",
         "./skills/executive-search-leadership-hiring",
         "./skills/difficult-career-conversations",
-        "./skills/executive-terminations-transitions"
+        "./skills/executive-terminations-transitions",
+        "./skills/cv-quality-lab",
+        "./skills/career-portfolio-strategy"
       ]
     },
     {
